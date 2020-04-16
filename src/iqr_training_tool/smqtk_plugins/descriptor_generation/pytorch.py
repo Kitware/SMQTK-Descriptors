@@ -13,6 +13,7 @@ from smqtk.utils.configuration import (
 from smqtk.utils.parallel import parallel_map
 
 import torch
+from torch.utils.data import Dataset, DataLoader
 import torchvision.models
 import torchvision.transforms
 
@@ -37,6 +38,19 @@ def normalize_vectors(v, mode=None):
         return v / n
     # When normalization off
     return v
+
+
+class ImgMatDataset (Dataset):
+
+    def __init__(self, img_mat_list, transform):
+        self._img_mat_list = img_mat_list
+        self._transform = transform
+
+    def __getitem__(self, index):
+        return self._transform(self._img_mat_list[index])
+
+    def __len__(self):
+        return len(self._img_mat_list)
 
 
 class TorchModuleDescriptorGenerator (DescriptorGenerator):
@@ -68,11 +82,24 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         Optionally normalize descriptor vectors as they are produced. We use
         ``numpy.linalg.norm`` so any valid value for the ``ord`` parameter is
         acceptable here.
+    :param bool iter_runtime:
+        By default the input image matrix data is accumulated into a list in
+        order to utilize `torch.utils.data.DataLoader` for batching.
+        If this is parameter is True however, we use a custom parallel
+        iteration pipeline for image transformation into network appropriate
+        tensors.
+        Using this mode changes the maximum RAM usage profile to be linear with
+        batch-size instead of input image data amount, as well as having lower
+        latency to first yield.
+        This mode is idea for streaming input or high input volume situations.
+        This mode currently has a short-coming of working only in a threaded
+        manner so it is not as fast as using the `DataLoader` avenue.
     """
 
     def __init__(self, image_reader, image_load_threads=1,
                  weights_filepath=None, image_tform_threads=1, batch_size=32,
-                 use_gpu=False, cuda_device=None, normalize=None):
+                 use_gpu=False, cuda_device=None, normalize=None,
+                 iter_runtime=False):
         super().__init__()
         self._image_reader = image_reader
         self._image_load_threads = image_load_threads
@@ -82,6 +109,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         self._use_gpu = use_gpu
         self._cuda_device = cuda_device
         self._normalize = normalize
+        self._iter_runtime = iter_runtime
         # Place-holder for the torch.nn.Module loaded.
         self._module = None
         # Just load model on construction
@@ -138,13 +166,18 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         ir_load = self._image_reader.load_as_matrix
         i_load_threads = self._image_load_threads
 
+        gen_fn = (
+            self.generate_arrays_from_images_naive,     # False
+            self.generate_arrays_from_images_iter,      # True
+        )[self._iter_runtime]
+
         if i_load_threads is None or i_load_threads > 1:
-            return self.generate_arrays_from_images(
+            return gen_fn(
                 parallel_map(ir_load, data_iter,
                              cores=i_load_threads)
             )
         else:
-            return self.generate_arrays_from_images(
+            return gen_fn(
                 ir_load(d) for d in data_iter
             )
 
@@ -152,7 +185,42 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
     #       that adds a PIL.Image.from_array and convert transformation to
     #       ensure being in the expected image format for the network.
 
-    def generate_arrays_from_images(self, img_mat_iter):
+    def generate_arrays_from_images_naive(self, img_mat_iter):
+        model = self._ensure_module()
+
+        # Just gather all input into list for pytorch dataset wrapping
+        img_mat_list = list(img_mat_iter)
+        tform_img_fn = self._make_transform()
+        use_gpu = self._use_gpu
+        cuda_device = self._cuda_device
+
+        dl = torch.utils.data.DataLoader(
+            ImgMatDataset(img_mat_list, tform_img_fn),
+            batch_size=self._batch_size,
+            # Don't need more workers than we have input, so don't bother
+            # spinning them up...
+            num_workers=min(self._image_tform_threads, len(img_mat_list)),
+            # Use pinned memory when we're in use-gpu mode.
+            pin_memory=use_gpu is True)
+        with torch.no_grad():
+            for batch_input in dl:
+                # batch_input: batch_size x channels x height x width
+                if use_gpu:
+                    batch_input = batch_input.cuda(cuda_device)
+                feats = model(batch_input)
+
+                feats_np = np.squeeze(feats.cpu().numpy().astype(np.float32))
+                if len(feats_np.shape) < 2:
+                    # Add a dim if the batch size was only one (first dim
+                    # squeezed down).
+                    feats_np = np.expand_dims(feats_np, 0)
+                # feats_np at this point: batch_size x n_feats
+                # Normalizing *after* squeezing for axis sanity.
+                feats_np = normalize_vectors(feats_np, self._normalize)
+                for f in feats_np:
+                    yield f
+
+    def generate_arrays_from_images_iter(self, img_mat_iter):
         """
         Template method for implementation to define descriptor generation over
         input image matrices.
