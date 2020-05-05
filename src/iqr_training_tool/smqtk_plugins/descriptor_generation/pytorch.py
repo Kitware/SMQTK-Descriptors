@@ -41,7 +41,6 @@ def normalize_vectors(v, mode=None):
     # When normalization off
     return v
 
-
 class ImgMatDataset (Dataset):
 
     def __init__(self, img_mat_list, transform):
