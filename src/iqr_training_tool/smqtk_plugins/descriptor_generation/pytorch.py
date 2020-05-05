@@ -10,13 +10,15 @@ from smqtk.utils.configuration import (
     make_default_config,
     to_config_dict,
 )
+
+from .utils import load_state_dict
 from smqtk.utils.parallel import parallel_map
 
 import torch
 from torch.utils.data import Dataset, DataLoader
 import torchvision.models
 import torchvision.transforms
-
+from torch.nn import functional as F
 
 def normalize_vectors(v, mode=None):
     """
@@ -99,7 +101,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
     def __init__(self, image_reader, image_load_threads=1,
                  weights_filepath=None, image_tform_threads=1, batch_size=32,
                  use_gpu=False, cuda_device=None, normalize=None,
-                 iter_runtime=False):
+                 iter_runtime=False, global_average_pool=False):
         super().__init__()
         self._image_reader = image_reader
         self._image_load_threads = image_load_threads
@@ -110,6 +112,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         self._cuda_device = cuda_device
         self._normalize = normalize
         self._iter_runtime = iter_runtime
+        self._global_average_pool = global_average_pool
         # Place-holder for the torch.nn.Module loaded.
         self._module = None
         # Just load model on construction
@@ -147,12 +150,19 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
                                         # In-case weights were saved with the
                                         # context of a non-CPU device.
                                         map_location="cpu")
+                
                 # A common alternative pattern is for training to save
                 # checkpoints/state-dicts as a nested dict that contains the
                 # state-dict under the key 'state_dict'.
                 if 'state_dict' in checkpoint:
                     checkpoint = checkpoint['state_dict']
-                module.load_state_dict(checkpoint)
+                elif 'state_dicts' in checkpoint:
+                    checkpoint = checkpoint['state_dicts'][0]
+                #module.load_state_dict(checkpoint)
+
+                # Align model and checkpoint and load weights
+                load_state_dict(module, checkpoint) 
+
             module.eval()
             if self._use_gpu:
                 module = module.cuda(self._cuda_device)
@@ -283,11 +293,22 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
                 process_tensor = batch_tensor.cuda(cuda_device)
             with torch.no_grad():
                 feats = model(process_tensor)
+
+            # Check for models that return features for both (global, local)
+            if isinstance(feats, tuple):
+                feats = feats[0]
+
+            # Apply global average pool
+            if self._global_average_pool:
+                feats = F.avg_pool2d(feats, feats.size()[2:])
+                feats = feats.view(feats.size(0), -1)
+
             feats_np = np.squeeze(feats.cpu().numpy().astype(np.float32))
             if len(feats_np.shape) < 2:
                 # Add a dim if the batch size was only one (first dim squeezed
                 # down).
                 feats_np = np.expand_dims(feats_np, 0)
+
             # Normalizing *after* squeezing for axis sanity.
             feats_np = normalize_vectors(feats_np, self._normalize)
             for f in feats_np:
@@ -322,7 +343,6 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
             "cuda_device": self._cuda_device,
         }
 
-
 class Resnet50SequentualTorchDescriptorGenerator (TorchModuleDescriptorGenerator):
     """
     Use torchvision.models.resnet50, but chop off the final fully-connected
@@ -356,3 +376,41 @@ class Resnet50SequentualTorchDescriptorGenerator (TorchModuleDescriptorGenerator
                 std=[0.229, 0.224, 0.225]
             )
         ])
+
+class AlignedReIDResNet50TorchDescriptorGenerator (TorchModuleDescriptorGenerator):
+    """
+    Descriptor generator for computing Aligned Re-ID++ descriptors.
+    """
+    
+    @classmethod
+    def is_usable(cls):
+        return True
+
+    def _load_module(self):
+
+        # Pre-initialization with imagenet model important - provided 
+        # checkpoint potentially missing layers
+        m = torchvision.models.resnet50(
+            pretrained=True
+        )
+        if pretrained:
+            self._log.info("Using pre-trained weights for pytorch ResNet-50 "
+                           "network.".format(type(m)))
+
+        # Return model without pool and linear layer
+        return torch.nn.Sequential(
+            *tuple(m.children())[:-2]
+        )
+
+    def _make_transform(self):
+        # Transform based on: https://pytorch.org/hub/pytorch_vision_resnet/
+        return torchvision.transforms.Compose([
+            torchvision.transforms.ToPILImage(mode='RGB'),
+            torchvision.transforms.Resize((224, 224)),
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225]
+            )
+        ])
+
