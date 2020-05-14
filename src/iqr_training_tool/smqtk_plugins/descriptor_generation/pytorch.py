@@ -322,6 +322,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
             #: :type: list[torch.Tensor]
             batch_slice = list(itertools.islice(tfed_mat_iter, batch_size))
 
+
     # Configuration overrides
     @classmethod
     def get_default_config(cls):
@@ -354,6 +355,7 @@ class Resnet50SequentualTorchDescriptorGenerator (TorchModuleDescriptorGenerator
     Use torchvision.models.resnet50, but chop off the final fully-connected
     layer as a ``torch.nn.Sequential``.
     """
+
 
     @classmethod
     def is_usable(cls):
