@@ -96,6 +96,12 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         This mode is idea for streaming input or high input volume situations.
         This mode currently has a short-coming of working only in a threaded
         manner so it is not as fast as using the `DataLoader` avenue.
+    :param bool global_average_pool:
+        Optionally apply a GAP operation to the spatial dimension of the feature
+        vector that is returned by the descriptor generator. Some models return
+        a w x h x k tensor and flatten them into a single dimension, which can
+        remove the spatial context of the features. Taking an average over each
+        channel can improve the clustering in some cases.
     """
 
     def __init__(self, image_reader, image_load_threads=1,
