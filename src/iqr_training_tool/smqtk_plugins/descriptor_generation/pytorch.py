@@ -20,6 +20,7 @@ import torchvision.models
 import torchvision.transforms
 from torch.nn import functional as F
 
+
 def normalize_vectors(v, mode=None):
     """
     Array/Matrix normalization along max dimension (i.e. a=0 for 1D array, a=1
