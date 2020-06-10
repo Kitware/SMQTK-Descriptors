@@ -226,15 +226,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
             
             feats = self._forward(model, batch_input)
 
-            feats_np = np.squeeze(feats.cpu().numpy().astype(np.float32))
-            if len(feats_np.shape) < 2:
-                # Add a dim if the batch size was only one (first dim
-                # squeezed down).
-                feats_np = np.expand_dims(feats_np, 0)
-            # feats_np at this point: batch_size x n_feats
-            # Normalizing *after* squeezing for axis sanity.
-            feats_np = normalize_vectors(feats_np, self._normalize)
-            for f in feats_np:
+            for f in feats:
                 yield f
 
     def generate_arrays_from_images_iter(self, img_mat_iter):
@@ -301,20 +293,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
             
             feats = self._forward(model, process_tensor)
             
-            # Apply global average pool
-            if self._global_average_pool:
-                feats = F.avg_pool2d(feats, feats.size()[2:])
-                feats = feats.view(feats.size(0), -1)
-
-            feats_np = np.squeeze(feats.cpu().numpy().astype(np.float32))
-            if len(feats_np.shape) < 2:
-                # Add a dim if the batch size was only one (first dim squeezed
-                # down).
-                feats_np = np.expand_dims(feats_np, 0)
-
-            # Normalizing *after* squeezing for axis sanity.
-            feats_np = normalize_vectors(feats_np, self._normalize)
-            for f in feats_np:
+            for f in feats:
                 yield f
             #: :type: list[torch.Tensor]
             batch_slice = list(itertools.islice(tfed_mat_iter, batch_size))
@@ -331,9 +310,24 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         """
 
         with torch.no_grad():
-            out = model(model_input)
+            feats = model(model_input)
 
-        return out
+        # Apply global average pool
+        if self._global_average_pool:
+            feats = F.avg_pool2d(feats, feats.size()[2:])
+            feats = feats.view(feats.size(0), -1)
+
+        feats_np = np.squeeze(feats.cpu().numpy().astype(np.float32))
+        if len(feats_np.shape) < 2:
+            # Add a dim if the batch size was only one (first dim squeezed
+            # down).
+            feats_np = np.expand_dims(feats_np, 0)
+
+        # Normalizing *after* squeezing for axis sanity.
+        feats_np = normalize_vectors(feats_np, self._normalize)
+
+
+        return feats
 
     # Configuration overrides
     @classmethod
@@ -407,7 +401,7 @@ class AlignedReIDResNet50TorchDescriptorGenerator (TorchModuleDescriptorGenerato
         return True
 
     def _load_module(self):
-
+        pretrained = self._weights_filepath is None
         # Pre-initialization with imagenet model important - provided 
         # checkpoint potentially missing layers
         m = torchvision.models.resnet50(
@@ -424,11 +418,15 @@ class AlignedReIDResNet50TorchDescriptorGenerator (TorchModuleDescriptorGenerato
 
     def _forward(self, model, model_input):
         with torch.no_grad():
-            feats = model(process_tensor)
+            feats = model(model_input)
 
         # Use only global features from return of (global_feats, local_feats)
-        feats = feats[0]
-        
+        if isinstance(feats, tuple):
+            feats = feats[0]
+      
+        feats = F.avg_pool2d(feats, feats.size()[2:])
+        feats = feats.view(feats.size(0), -1)
+
         return feats
 
 
