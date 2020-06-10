@@ -218,23 +218,24 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
             num_workers=min(self._image_tform_threads, len(img_mat_list)),
             # Use pinned memory when we're in use-gpu mode.
             pin_memory=use_gpu is True)
-        with torch.no_grad():
-            for batch_input in dl:
-                # batch_input: batch_size x channels x height x width
-                if use_gpu:
-                    batch_input = batch_input.cuda(cuda_device)
-                feats = model(batch_input)
+        
+        for batch_input in dl:
+            # batch_input: batch_size x channels x height x width
+            if use_gpu:
+                batch_input = batch_input.cuda(cuda_device)
+            
+            feats = self._forward(model, batch_input)
 
-                feats_np = np.squeeze(feats.cpu().numpy().astype(np.float32))
-                if len(feats_np.shape) < 2:
-                    # Add a dim if the batch size was only one (first dim
-                    # squeezed down).
-                    feats_np = np.expand_dims(feats_np, 0)
-                # feats_np at this point: batch_size x n_feats
-                # Normalizing *after* squeezing for axis sanity.
-                feats_np = normalize_vectors(feats_np, self._normalize)
-                for f in feats_np:
-                    yield f
+            feats_np = np.squeeze(feats.cpu().numpy().astype(np.float32))
+            if len(feats_np.shape) < 2:
+                # Add a dim if the batch size was only one (first dim
+                # squeezed down).
+                feats_np = np.expand_dims(feats_np, 0)
+            # feats_np at this point: batch_size x n_feats
+            # Normalizing *after* squeezing for axis sanity.
+            feats_np = normalize_vectors(feats_np, self._normalize)
+            for f in feats_np:
+                yield f
 
     def generate_arrays_from_images_iter(self, img_mat_iter):
         """
@@ -297,13 +298,9 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
                 # Copy input data tensor in batch to GPU.
                 # - Need to use the same CUDA device that model is loaded on.
                 process_tensor = batch_tensor.cuda(cuda_device)
-            with torch.no_grad():
-                feats = model(process_tensor)
-
-            # Check for models that return features for both (global, local)
-            if isinstance(feats, tuple):
-                feats = feats[0]
-
+            
+            feats = self._forward(model, process_tensor)
+            
             # Apply global average pool
             if self._global_average_pool:
                 feats = F.avg_pool2d(feats, feats.size()[2:])
@@ -322,6 +319,21 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
             #: :type: list[torch.Tensor]
             batch_slice = list(itertools.islice(tfed_mat_iter, batch_size))
 
+    def _forward(self, model, model_input):
+        """
+        Template method for implementation of forward pass of model.
+
+        :param module model: Network module with loaded weights
+        :param Torch.tensor model_input: Tensor that has been appropriately
+            shaped and placed onto target inference hardware.
+        
+        :return: Tensor output of module() call
+        """
+
+        with torch.no_grad():
+            out = model(model_input)
+
+        return out
 
     # Configuration overrides
     @classmethod
@@ -409,6 +421,16 @@ class AlignedReIDResNet50TorchDescriptorGenerator (TorchModuleDescriptorGenerato
         return torch.nn.Sequential(
             *tuple(m.children())[:-2]
         )
+
+    def _forward(self, model, model_input):
+        with torch.no_grad():
+            feats = model(process_tensor)
+
+        # Use only global features from return of (global_feats, local_feats)
+        feats = feats[0]
+        
+        return feats
+
 
     def _make_transform(self):
         # Transform based on: https://pytorch.org/hub/pytorch_vision_resnet/
