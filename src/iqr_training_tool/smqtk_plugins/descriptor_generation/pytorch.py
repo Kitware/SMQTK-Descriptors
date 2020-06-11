@@ -302,7 +302,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         """
         Template method for implementation of forward pass of model.
 
-        :param module model: Network module with loaded weights
+        :param torch.nn.Module model: Network module with loaded weights
         :param Torch.tensor model_input: Tensor that has been appropriately
             shaped and placed onto target inference hardware.
         
