@@ -313,7 +313,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
             feats = model(model_input)
 
         # Apply global average pool
-        if self._global_average_pool:
+        if self._global_average_pool and len(feats.size()) > 2:
             feats = F.avg_pool2d(feats, feats.size()[2:])
             feats = feats.view(feats.size(0), -1)
 
