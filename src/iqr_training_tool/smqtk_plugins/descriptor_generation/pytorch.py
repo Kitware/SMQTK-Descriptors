@@ -164,7 +164,6 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
                     checkpoint = checkpoint['state_dict']
                 elif 'state_dicts' in checkpoint:
                     checkpoint = checkpoint['state_dicts'][0]
-                #module.load_state_dict(checkpoint)
 
                 # Align model and checkpoint and load weights
                 load_state_dict(module, checkpoint) 
