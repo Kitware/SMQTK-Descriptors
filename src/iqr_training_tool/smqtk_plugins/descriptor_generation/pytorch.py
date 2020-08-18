@@ -307,7 +307,6 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         
         :return: Tensor output of module() call
         """
-
         with torch.no_grad():
             feats = model(model_input)
 
@@ -325,8 +324,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         # Normalizing *after* squeezing for axis sanity.
         feats_np = normalize_vectors(feats_np, self._normalize)
 
-
-        return feats
+        return feats_np
 
     # Configuration overrides
     @classmethod
@@ -355,12 +353,12 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
             "cuda_device": self._cuda_device,
         }
 
+
 class Resnet50SequentualTorchDescriptorGenerator (TorchModuleDescriptorGenerator):
     """
     Use torchvision.models.resnet50, but chop off the final fully-connected
     layer as a ``torch.nn.Sequential``.
     """
-
 
     @classmethod
     def is_usable(cls):
@@ -389,6 +387,7 @@ class Resnet50SequentualTorchDescriptorGenerator (TorchModuleDescriptorGenerator
                 std=[0.229, 0.224, 0.225]
             )
         ])
+
 
 class AlignedReIDResNet50TorchDescriptorGenerator (TorchModuleDescriptorGenerator):
     """
@@ -427,7 +426,6 @@ class AlignedReIDResNet50TorchDescriptorGenerator (TorchModuleDescriptorGenerato
         feats = feats.view(feats.size(0), -1)
 
         return feats
-
 
     def _make_transform(self):
         # Transform based on: https://pytorch.org/hub/pytorch_vision_resnet/
