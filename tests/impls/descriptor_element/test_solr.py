@@ -3,9 +3,8 @@ import unittest
 import unittest.mock as mock
 import pytest
 
-from smqtk.representation.descriptor_element.solr_element import \
-    SolrDescriptorElement
-from smqtk.utils.configuration import configuration_test_helper
+from smqtk_core.configuration import configuration_test_helper
+from smqtk_descriptors.impls.descriptor_element.solr import SolrDescriptorElement
 
 
 @pytest.mark.skipif(not SolrDescriptorElement.is_usable(),

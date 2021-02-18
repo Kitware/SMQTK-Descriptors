@@ -1,3 +1,4 @@
+from io import BytesIO
 import itertools
 import logging
 from typing import Dict, Optional
@@ -5,14 +6,16 @@ from typing import Dict, Optional
 import numpy
 import PIL.Image
 import PIL.ImageFile
-from six import BytesIO
 
-from smqtk.algorithms.descriptor_generator import DescriptorGenerator
-from smqtk.representation import DataElement
-from smqtk.utils.configuration import from_config_dict, to_config_dict, \
+from smqtk_core.configuration import (
+    from_config_dict,
+    to_config_dict,
     make_default_config
-from smqtk.utils.dict import merge_dict
-from smqtk.utils.parallel import parallel_map
+)
+from smqtk_core.dict import merge_dict
+from smqtk_dataprovider import DataElement
+from smqtk_descriptors import DescriptorGenerator
+from smqtk_descriptors.utils import parallel_map
 
 try:
     import caffe  # type: ignore
@@ -29,6 +32,9 @@ __all__ = [
 ]
 
 
+LOG = logging.getLogger(__name__)
+
+
 class CaffeDescriptorGenerator (DescriptorGenerator):
     """
     Compute images against a Caffe model, extracting a layer as the content
@@ -39,7 +45,7 @@ class CaffeDescriptorGenerator (DescriptorGenerator):
     def is_usable(cls):
         valid = caffe is not None
         if not valid:
-            cls.get_logger().debug("Caffe python module cannot be imported")
+            LOG.debug("Caffe python module cannot be imported")
         return valid
 
     @classmethod
@@ -217,11 +223,11 @@ class CaffeDescriptorGenerator (DescriptorGenerator):
         Set the appropriate Caffe mode on the current thread/process.
         """
         if self.use_gpu:
-            self._log.debug("Using GPU")
+            LOG.debug("Using GPU")
             caffe.set_device(self.gpu_device_id)
             caffe.set_mode_gpu()
         else:
-            self._log.debug("using CPU")
+            LOG.debug("using CPU")
             caffe.set_mode_cpu()
 
     def _setup_network(self):
@@ -236,8 +242,8 @@ class CaffeDescriptorGenerator (DescriptorGenerator):
 
         # Questions:
         #   - ``caffe.TEST`` indicates phase of either TRAIN or TEST
-        self._log.debug("Initializing network")
-        self._log.debug("Loading Caffe network from network/model configs")
+        LOG.debug("Initializing network")
+        LOG.debug("Loading Caffe network from network/model configs")
         self.network = caffe.Net(
             self.network_prototxt.write_temp().encode(),
             caffe.TEST,
@@ -247,27 +253,26 @@ class CaffeDescriptorGenerator (DescriptorGenerator):
         self.network_model.clean_temp()
         # Assuming the network has a 'data' layer and notion of data shape
         self.net_data_shape = self.network.blobs[self.data_layer].data.shape
-        self._log.debug("Network data shape: %s", self.net_data_shape)
+        LOG.debug("Network data shape: %s", self.net_data_shape)
 
         # Crating input data transformer
-        self._log.debug("Initializing data transformer")
+        LOG.debug("Initializing data transformer")
         self.transformer = caffe.io.Transformer(
             {self.data_layer: self.network.blobs[self.data_layer].data.shape}
         )
-        self._log.debug("Initializing data transformer -> %s",
-                        self.transformer.inputs)
+        LOG.debug("Initializing data transformer -> %s",
+                  self.transformer.inputs)
 
         if self.image_mean is not None:
-            self._log.debug("Loading image mean (reducing to single pixel "
-                            "mean)")
+            LOG.debug("Loading image mean (reducing to single pixel mean)")
             image_mean_bytes = self.image_mean.get_bytes()
             try:
                 # noinspection PyTypeChecker
                 a = numpy.load(BytesIO(image_mean_bytes), allow_pickle=True)
-                self._log.info("Loaded image mean from numpy bytes")
+                LOG.info("Loaded image mean from numpy bytes")
             except IOError:
-                self._log.debug("Image mean file not a numpy array, assuming "
-                                "URI to protobuf binary.")
+                LOG.debug("Image mean file not a numpy array, assuming URI to "
+                          "protobuf binary.")
                 # noinspection PyUnresolvedReferences
                 blob = caffe.proto.caffe_pb2.BlobProto()
                 blob.ParseFromString(image_mean_bytes)
@@ -276,7 +281,7 @@ class CaffeDescriptorGenerator (DescriptorGenerator):
                     "Input image mean blob protobuf consisted of more than " \
                     "one image. Not sure how to handle this yet."
                 a = a.reshape(a.shape[1:])
-                self._log.info("Loaded image mean from protobuf bytes")
+                LOG.info("Loaded image mean from protobuf bytes")
             assert a.shape[0] in [1, 3], \
                 "Currently asserting that we either get 1 or 3 channel " \
                 "images. Got a %d channel image." % a[0]
@@ -284,16 +289,16 @@ class CaffeDescriptorGenerator (DescriptorGenerator):
             #       if given. Might have to rescale if image/data layer shape
             #       is different.
             a_mean = a.mean(1).mean(1)
-            self._log.debug("Initializing data transformer -- mean")
+            LOG.debug("Initializing data transformer -- mean")
             self.transformer.set_mean(self.data_layer, a_mean)
 
-        self._log.debug("Initializing data transformer -- transpose")
+        LOG.debug("Initializing data transformer -- transpose")
         self.transformer.set_transpose(self.data_layer, (2, 0, 1))
         if self.network_is_bgr:
-            self._log.debug("Initializing data transformer -- channel swap")
+            LOG.debug("Initializing data transformer -- channel swap")
             self.transformer.set_channel_swap(self.data_layer, (2, 1, 0))
         if self.input_scale:
-            self._log.debug("Initializing data transformer -- input scale")
+            LOG.debug("Initializing data transformer -- input scale")
             self.transformer.set_input_scale(self.data_layer, self.input_scale)
 
     def get_config(self):
@@ -367,7 +372,7 @@ class CaffeDescriptorGenerator (DescriptorGenerator):
         )
 
         self._set_caffe_mode()
-        log_debug = self._log.debug
+        log_debug = LOG.debug
 
         # Start parallel operation to pre-process imagery before aggregating
         # for network execution.
@@ -450,10 +455,10 @@ def _process_load_img_array(input_tuple):
     PIL.ImageFile.LOAD_TRUNCATED_IMAGES = load_truncated_images
     try:
         img = PIL.Image.open(BytesIO(data_element.get_bytes()))
-    except Exception as ex:
+    except Exception as ex_:
         logging.getLogger(__name__).error(
             "Failed opening image from data element {}. Exception ({}): {}"
-            .format(data_element, type(ex), str(ex))
+            .format(data_element, type(ex_), str(ex_))
         )
         raise
     if img.mode != "RGB":
@@ -464,11 +469,11 @@ def _process_load_img_array(input_tuple):
         # This can fail if the image is truncated and we're not allowing the
         # loading of those images
         img_a = numpy.asarray(img, numpy.float32)
-    except Exception as ex:
+    except Exception as ex_:
         logging.getLogger(__name__).error(
             "Failed array-ifying data element {}. Image may be truncated. "
             "Exception ({}): {}"
-            .format(data_element, type(ex), str(ex))
+            .format(data_element, type(ex_), str(ex_))
         )
         raise
     assert img_a.ndim == 3, \

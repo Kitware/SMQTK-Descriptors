@@ -1,13 +1,11 @@
-from __future__ import division, print_function
 import unittest
+import unittest.mock as mock
 
 import numpy
 import pytest
-import unittest.mock as mock
 
-from smqtk.algorithms.descriptor_generator import DescriptorGenerator
-import smqtk.representation
-from smqtk.representation import DescriptorElement, DescriptorElementFactory
+from smqtk_dataprovider import DataElement
+from smqtk_descriptors import DescriptorGenerator, DescriptorElement, DescriptorElementFactory
 
 
 class DummyDescriptorGenerator (DescriptorGenerator):
@@ -20,6 +18,11 @@ class DummyDescriptorGenerator (DescriptorGenerator):
     def is_usable(cls):
         return True
 
+    def __init__(self):
+        super().__init__()
+        # Stub "method" for testing functionality is called post-final-yield.
+        self._post_iterator_check = mock.Mock()
+
     def get_config(self):
         return {}
 
@@ -31,10 +34,6 @@ class DummyDescriptorGenerator (DescriptorGenerator):
         for i, d in enumerate(data_iter):
             yield [i]
         self._post_iterator_check()
-
-    def _post_iterator_check(self):
-        """ Stub method for testing functionality is called post-final-yield.
-        """
 
     def _generate_too_many_arrays(self, data_iter):
         """
@@ -68,7 +67,6 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
     def setUp(self):
         self.inst = DummyDescriptorGenerator()
         self.inst.valid_content_types = mock.Mock(return_value={'image/png'})
-        self.inst._post_iterator_check = mock.Mock()
 
     def test_generate_arrays_invalid_type(self):
         """ Test that the raise-valid-element method catches an invalid input
@@ -76,7 +74,7 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         # Using dummy to pull in integrated mixin class functionality.
         inst = self.inst
 
-        m_d = mock.Mock(spec=smqtk.representation.DataElement)
+        m_d = mock.Mock(spec=DataElement)
         m_d.content_type.return_value = 'image/jpeg'
 
         with pytest.raises(ValueError,
@@ -95,9 +93,9 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         inst = self.inst
 
         data_list = [
-            mock.Mock(spec=smqtk.representation.DataElement),
-            mock.Mock(spec=smqtk.representation.DataElement),
-            mock.Mock(spec=smqtk.representation.DataElement),
+            mock.Mock(spec=DataElement),
+            mock.Mock(spec=DataElement),
+            mock.Mock(spec=DataElement),
         ]
         for d in data_list:
             # match "valid_content_types"
@@ -139,7 +137,7 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
     def test_generate_elements_bad_content_type(self):
         """ Test that a ValueError occurs if one or more data elements passed
         are not considered to have valid content types. """
-        d = mock.Mock(spec=smqtk.representation.DataElement)
+        d = mock.Mock(spec=DataElement)
         d.content_type.return_value = "image/jpeg"
 
         with pytest.raises(ValueError,
@@ -158,9 +156,9 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         """
         # Mock data element input
         data_iter = [
-            mock.Mock(spec=smqtk.representation.DataElement),
-            mock.Mock(spec=smqtk.representation.DataElement),
-            mock.Mock(spec=smqtk.representation.DataElement),
+            mock.Mock(spec=DataElement),
+            mock.Mock(spec=DataElement),
+            mock.Mock(spec=DataElement),
         ]
         for d in data_iter:
             d.content_type.return_value = 'image/png'
@@ -192,9 +190,9 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         """
         # Mock data element input
         data_iter = [
-            mock.Mock(spec=smqtk.representation.DataElement),
-            mock.Mock(spec=smqtk.representation.DataElement),
-            mock.Mock(spec=smqtk.representation.DataElement),
+            mock.Mock(spec=DataElement),
+            mock.Mock(spec=DataElement),
+            mock.Mock(spec=DataElement),
         ]
         for d in data_iter:
             d.content_type.return_value = 'image/png'
@@ -225,9 +223,9 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         underlying generation method. """
         # Mock data element input
         data_iter = [
-            mock.Mock(spec=smqtk.representation.DataElement),
-            mock.Mock(spec=smqtk.representation.DataElement),
-            mock.Mock(spec=smqtk.representation.DataElement),
+            mock.Mock(spec=DataElement),
+            mock.Mock(spec=DataElement),
+            mock.Mock(spec=DataElement),
         ]
         for d in data_iter:
             d.content_type.return_value = 'image/png'
@@ -236,7 +234,7 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         m_de_type = mock.MagicMock(name="DescrElemType")
 
         # Mock factory
-        fact = smqtk.representation.DescriptorElementFactory(
+        fact = DescriptorElementFactory(
             m_de_type, {}
         )
 
@@ -263,9 +261,9 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         elements report as having a vector and overwrite is False. """
         # Mock data element input
         data_iter = [
-            mock.Mock(spec=smqtk.representation.DataElement),
-            mock.Mock(spec=smqtk.representation.DataElement),
-            mock.Mock(spec=smqtk.representation.DataElement),
+            mock.Mock(spec=DataElement),
+            mock.Mock(spec=DataElement),
+            mock.Mock(spec=DataElement),
         ]
         for d in data_iter:
             d.content_type.return_value = 'image/png'
@@ -274,7 +272,7 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         m_de_type = mock.MagicMock(name="DescrElemType")
 
         # Mock factory
-        fact = smqtk.representation.DescriptorElementFactory(
+        fact = DescriptorElementFactory(
             m_de_type, {}
         )
 
@@ -298,9 +296,9 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         """
         # Mock data element input
         data_iter = [
-            mock.Mock(spec=smqtk.representation.DataElement),
-            mock.Mock(spec=smqtk.representation.DataElement),
-            mock.Mock(spec=smqtk.representation.DataElement),
+            mock.Mock(spec=DataElement),
+            mock.Mock(spec=DataElement),
+            mock.Mock(spec=DataElement),
         ]
         for d in data_iter:
             d.content_type.return_value = 'image/png'
@@ -309,7 +307,7 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         m_de_type = mock.MagicMock(name="DescrElemType")
 
         # Mock factory
-        fact = smqtk.representation.DescriptorElementFactory(
+        fact = DescriptorElementFactory(
             m_de_type, {}
         )
 
@@ -337,12 +335,12 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         data_iter = []
         m_descr_elems = []
         for i in range(8):
-            data = mock.Mock(spec=smqtk.representation.DataElement)
+            data = mock.Mock(spec=DataElement)
             data.uuid.return_value = i
             data.content_type.return_value = 'image/png'
             data_iter.append(data)
 
-            desc = mock.Mock(spec=smqtk.representation.DescriptorElement)
+            desc = mock.Mock(spec=DescriptorElement)
             if i in [2, 3, 5]:  # !!!
                 desc.has_vector.return_value = False
             else:
@@ -354,7 +352,7 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
             return dict(enumerate(m_descr_elems))[uuid]
 
         m_fact = \
-            mock.MagicMock(spec=smqtk.representation.DescriptorElementFactory)
+            mock.MagicMock(spec=DescriptorElementFactory)
         m_fact.new_descriptor.side_effect = m_fact_newdesc
 
         actual_ret = list(
@@ -386,7 +384,7 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
     def test_generate_one_array(self):
         """ Test that the one-array wrapper performs as expected.
         """
-        m_d = mock.Mock(spec=smqtk.representation.DataElement)
+        m_d = mock.Mock(spec=DataElement)
         m_d.content_type.return_value = 'image/png'
 
         actual_v = self.inst.generate_one_array(m_d)
@@ -400,7 +398,7 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         """ Test that the one-element wrapper performs as expected.
         Using default factory/overwrite params (memory, False).
         """
-        m_d = mock.Mock(spec=smqtk.representation.DataElement)
+        m_d = mock.Mock(spec=DataElement)
         m_d.content_type.return_value = 'image/png'
 
         actual_e = self.inst.generate_one_element(m_d)

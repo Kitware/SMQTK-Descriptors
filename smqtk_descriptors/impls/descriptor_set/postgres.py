@@ -7,20 +7,20 @@ References:
 """
 import logging
 import multiprocessing
+import pickle
 
-from six.moves import zip
-from six.moves import cPickle as pickle
+from smqtk_dataprovider.exceptions import ReadOnlyError
+from smqtk_dataprovider.utils.postgres import norm_psql_cmd_string, PsqlConnectionHelper
+from smqtk_descriptors import DescriptorSet
 
-from smqtk.representation import DescriptorSet
-from smqtk.exceptions import ReadOnlyError
-from smqtk.utils.postgres \
-    import norm_psql_cmd_string, PsqlConnectionHelper
+
+LOG = logging.getLogger(__name__)
+
 
 try:
     import psycopg2  # type: ignore
 except ImportError as ex:
-    logging.getLogger(__name__)\
-           .warning("Failed to import psycopg2: %s", str(ex))
+    LOG.warning("Failed to import psycopg2: %s", str(ex))
     psycopg2 = None
 
 
@@ -366,7 +366,7 @@ class PostgresDescriptorSet (DescriptorSet):
         def exec_hook(cur, batch):
             cur.executemany(q, batch)
 
-        self._log.debug("Adding many descriptors")
+        LOG.debug("Adding many descriptors")
         list(self.psql_helper.batch_execute(iter_elements(), exec_hook,
                                             self.multiquery_batch_size))
 
@@ -434,10 +434,10 @@ class PostgresDescriptorSet (DescriptorSet):
 
         def exec_hook(cur, batch):
             v = {'uuid_list': batch}
-            # self._log.debug('query: %s', cur.mogrify(q, v))
+            # LOG.debug('query: %s', cur.mogrify(q, v))
             cur.execute(q, v)
 
-        self._log.debug("Getting many descriptors")
+        LOG.debug("Getting many descriptors")
         # The SELECT_MANY_ORDERED_TMPL query ensures that elements returned are
         #   in the UUID order given to this method. Thus, if the iterated UUIDs
         #   and iterated return rows do not exactly line up, the query join

@@ -1,10 +1,7 @@
-from __future__ import division, print_function
 import random
 import unittest
 
-from six.moves import map, range
-
-from smqtk.utils.parallel import parallel_map
+from smqtk_descriptors.utils.parallel import parallel_map
 
 
 class TestParallelMap (unittest.TestCase):

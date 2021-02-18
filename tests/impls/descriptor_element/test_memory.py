@@ -1,12 +1,11 @@
+from io import BytesIO
+import pickle
 import unittest
 
 import numpy
-from six import BytesIO
-from six.moves import cPickle
 
-from smqtk.representation.descriptor_element.local_elements import \
-    DescriptorMemoryElement
-from smqtk.utils.configuration import configuration_test_helper
+from smqtk_core.configuration import configuration_test_helper
+from smqtk_descriptors.impls.descriptor_element.memory import DescriptorMemoryElement
 
 
 class TestDescriptorMemoryElement (unittest.TestCase):
@@ -29,12 +28,12 @@ class TestDescriptorMemoryElement (unittest.TestCase):
         d2 = DescriptorMemoryElement('test', 1)
         d2.set_vector(v2)
 
-        d1_s = cPickle.dumps(d1)
-        d2_s = cPickle.dumps(d2)
+        d1_s = pickle.dumps(d1)
+        d2_s = pickle.dumps(d2)
 
         # Attempt reconstitution
-        d1_r = cPickle.loads(d1_s)
-        d2_r = cPickle.loads(d2_s)
+        d1_r = pickle.loads(d1_s)
+        d2_r = pickle.loads(d2_s)
 
         numpy.testing.assert_array_equal(v1, d1_r.vector())
         numpy.testing.assert_array_equal(v2, d2_r.vector())

@@ -2,7 +2,7 @@ import time
 
 import numpy
 
-from smqtk.representation import DescriptorElement
+from smqtk_descriptors import DescriptorElement
 
 
 # Try to import required module

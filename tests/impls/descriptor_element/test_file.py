@@ -1,12 +1,11 @@
+import pickle
 import unittest.mock as mock
 import unittest
 
 import numpy
-from six.moves import cPickle
 
-from smqtk.representation.descriptor_element.local_elements import \
-    DescriptorFileElement
-from smqtk.utils.configuration import configuration_test_helper
+from smqtk_core.configuration import configuration_test_helper
+from smqtk_descriptors.impls.descriptor_element.file import DescriptorFileElement
 
 
 class TestDescriptorFileElement (unittest.TestCase):
@@ -52,9 +51,8 @@ class TestDescriptorFileElement (unittest.TestCase):
         e1 = DescriptorFileElement(ex_type, ex_uid, ex_save_dir, ex_split)
 
         # pickle dump and load into a new copy
-        #: :type: DescriptorFileElement
-        e2 = cPickle.loads(cPickle.dumps(e1))
-        # Make sure the two have the smme attributes, including base descriptor
+        e2: DescriptorFileElement = pickle.loads(pickle.dumps(e1))
+        # Make sure the two have the same attributes, including base descriptor
         # element things.
         self.assertEqual(e1.type(), e2.type())
         self.assertEqual(e1.uuid(), e2.uuid())
@@ -62,10 +60,8 @@ class TestDescriptorFileElement (unittest.TestCase):
         self.assertEqual(e1._subdir_split, e2._subdir_split)
         self.assertEqual(e1._vec_filepath, e2._vec_filepath)
 
-    @mock.patch('smqtk.representation.descriptor_element.local_elements'
-                '.numpy.save')
-    @mock.patch('smqtk.representation.descriptor_element.local_elements'
-                '.safe_create_dir')
+    @mock.patch('smqtk_descriptors.impls.descriptor_element.file.numpy.save')
+    @mock.patch('smqtk_descriptors.impls.descriptor_element.file.safe_create_dir')
     def test_vector_set(self, mock_scd, mock_save):
         d = DescriptorFileElement('test', 1234, '/base', 4)
         self.assertEqual(d._vec_filepath,
@@ -76,8 +72,7 @@ class TestDescriptorFileElement (unittest.TestCase):
         mock_scd.assert_called_with('/base/1/2/3')
         mock_save.assert_called_with('/base/1/2/3/test.1234.vector.npy', v)
 
-    @mock.patch('smqtk.representation.descriptor_element.local_elements'
-                '.numpy.load')
+    @mock.patch('smqtk_descriptors.impls.descriptor_element.file.numpy.load')
     def test_vector_get(self, mock_load):
         d = DescriptorFileElement('test', 1234, '/base', 4)
         self.assertFalse(d.has_vector())

@@ -4,12 +4,9 @@ from typing import Any, Dict
 
 import numpy
 
-from smqtk.representation import SmqtkRepresentation
-from smqtk.utils.dict import merge_dict
-from smqtk.utils.plugin import Pluggable
-from smqtk.utils.parallel import parallel_map
-
-from ._io import elements_to_matrix  # noqa: F401
+from smqtk_core import Configurable, Pluggable
+from smqtk_core.dict import merge_dict
+from smqtk_descriptors.utils.parallel import parallel_map
 
 
 def _uuid_and_vector_from_descriptor(descriptor):
@@ -23,10 +20,10 @@ def _uuid_and_vector_from_descriptor(descriptor):
         descriptor
     :rtype: tuple[collections.abc.Hashable, numpy.ndarray]
     """
-    return (descriptor.uuid(), descriptor.vector())
+    return descriptor.uuid(), descriptor.vector()
 
 
-class DescriptorElement (SmqtkRepresentation, Pluggable):
+class DescriptorElement (Configurable, Pluggable):
     """
     Abstract descriptor vector container.
 

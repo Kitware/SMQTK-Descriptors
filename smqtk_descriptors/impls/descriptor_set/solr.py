@@ -3,7 +3,7 @@ import pickle
 import time
 from typing import Deque, Hashable
 
-from smqtk.representation.descriptor_set import DescriptorSet
+from smqtk_descriptors import DescriptorSet
 
 # Try to import required module
 try:

@@ -1,10 +1,13 @@
 stages:
+  - download
   - test
+  - build
+  - publish
 
 # Global default parameters set for all jobs unless overridden by job-specific
 # configuration.
 default:
-  image: python:3.6-buster
+  image: python:3.9-buster
   interruptible: true
 
 # Global default variables set for all jobs unless overridden by job-specific
@@ -13,85 +16,165 @@ variables:
   LC_ALL: "C.UTF-8"
   LANG: "C.UTF-8"
 
-# Common job specification not otherwise specifiable in the `default` section
-# above.
+
+###############################################################################
+# Run Conditions
+#
+
+# Run rules to activate at the major junction points: merge requests, tag
+# pipelines and branch pipelines for masters.
+.run_automatically:
+  rules:
+    - if: $CI_MERGE_REQUEST_IID
+      when: on_success
+    - if: $CI_COMMIT_TAG
+      when: on_success
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: on_success
+    - when: never  # explicit fail-exclude terminal condition.
+
+# Rules for running
+# TODO: When moving to enforcing forky workflow, this will not be necessary.
+.run_on_masters:
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: on_success
+    - when: never
+
+
+###############################################################################
+# Jobs -- Acquire Deps
+#
+# This job is an intermediate workaround to package sharing before moving to
+# github / PYPI.
+#
+
+.download_job_defaults:
+  extends: .run_automatically
+  stage: download
+  tags:
+    - linux
+    - docker
+  before_script:
+    - mkdir local-deps
+  artifacts:
+    paths:
+      - local-deps/*
+    when: on_success
+
+download:dep-smqtk-dataprovider:
+  extends: .download_job_defaults
+  script:
+    # Aligned with smqtk-dataprovider's "publish:generic_latest_wheel" job
+    # Custom CI Variables - SMQTK_DP_PROJECT_ID
+    - 'wget --header="JOB-TOKEN: $CI_JOB_TOKEN" ${CI_API_V4_URL}/projects/${SMQTK_DP_PROJECT_ID}/packages/generic/latest_wheel/0.0.0/smqtk-dataprovider-latest.tgz'
+    - tar xvf smqtk-dataprovider-latest.tgz -C local-deps
+
+
+###############################################################################
+# Jobs -- Testing
+
 .test_job_defaults:
+  extends: .run_automatically
   stage: test
   tags:
     - linux
     - docker
     - test
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      when: on_success
-    - when: never  # explicit fail-exclude terminal condition.
+  before_script:
+    - python --version
+    - pip install -U pip
+    - pip install local-deps/*
+    - pip install -r requirements.txt
+                  -e .
+  dependencies:
+    - download:dep-smqtk-dataprovider
 
-# Common setup script lines for test jobs
-.test_setup: &test_setup
-  - apt-get -y update
-  - python --version
-  - pip install -U pip
-  - pip install --use-feature=2020-resolver
-                -r requirements.txt
-                -e .
+.pytest_cmd: &pytest_cmd
+  - pytest --cov=smqtk_descriptors --cov-config=.pytest.coveragerc
 
-
-###############################################################################
-# Jobs
-
-#build:
-#  stage: build
-#  script:
-#    - echo "Placeholder for any build operations required."
-
-test:build_docs:
+test:unittests:
   extends: .test_job_defaults
+  parallel:
+    matrix:
+      - IMAGE: ["python:3.6-buster",
+                "python:3.7-buster",
+                "python:3.8-buster",
+                "python:3.9-buster"]
+  image: $IMAGE
   script:
-    - *test_setup  # expand `&test_setup` anchor above into here.
-    - cd docs
-    - make html
-    - stat _build/html/index.html
-
-test:py36:
-  extends: .test_job_defaults
-  script:
-    - *test_setup  # expand `&test_setup` anchor above into here.
-    - pytest --cov=smqtk --cov-config=.pytest.coveragerc
-
-test:py37:
-  extends: .test_job_defaults
-  image: python:3.7-buster
-  script:
-    - *test_setup  # expand `&test_setup` anchor above into here.
-    - pytest --cov=smqtk --cov-config=.pytest.coveragerc
-
-test:py38:
-  extends: .test_job_defaults
-  image: python:3.8-buster
-  script:
-    - *test_setup  # expand `&test_setup` anchor above into here.
-    - pytest --cov=smqtk --cov-config=.pytest.coveragerc
+    - *pytest_cmd
 
 test:lint:
   extends: .test_job_defaults
   script:
-    - *test_setup  # expand `&test_setup` anchor above into here.
     - flake8
 
 test:typecheck:
   extends: .test_job_defaults
   script:
-    - *test_setup
     - mypy
 
-test:added_a_change_note:
+test:docs_build:
   extends: .test_job_defaults
   script:
-    - TARGET=origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME
+    - cd docs
+    - make html
+    - stat _build/html/index.html
+
+
+###############################################################################
+# Jobs -- Build
+
+.build_job_defaults:
+  stage: build
+  tags:
+    - linux
+    - docker
+    - build
+
+build:build_wheel:
+  extends:
+    - .build_job_defaults
+    - .run_automatically
+  script:
+    - python setup.py bdist_wheel
+  artifacts:
+    paths:
+      - dist/*.whl
+    when: on_success
+
+
+###############################################################################
+# Jobs -- Publishing
+
+.publish_job_defaults:
+  stage: publish
+  tags:
+    - linux
+    - docker
+    - build
+
+publish:generic_latest_wheel:
+  # This job is an intermediate workaround to package sharing before moving to
+  # github / PYPI.
+  extends:
+    - .publish_job_defaults
+    - .run_on_masters
+  stage: publish
+  dependencies:
+    - build:build_wheel
+  script:
+    - ARCH_NAME="smqtk-descriptors-latest.tgz"
+    - DIST_FILES=($(ls dist))
     - |
-      FOUND=$(git diff --name-status --diff-filter=d ${TARGET} HEAD | grep "^\w\s*docs/release_notes/pending" || echo "")
-      if [[ "$FOUND" = "" ]]
+      if [[ "${#DIST_FILES[@]}" -ne 1 ]]
       then
-        echo "No \"pending_*\" change notes files have been modified. Please add a change note!"
+        echo "ERROR: More than one dist file detected:"
+        ls -lhF dist
         exit 1
       fi
+    - tar czf "$ARCH_NAME" -C dist "${DIST_FILES[0]}"
+    - >
+      curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file "$ARCH_NAME"
+      "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/latest_wheel/0.0.0/$ARCH_NAME"

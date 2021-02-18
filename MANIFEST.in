@@ -1,6 +1,4 @@
 include CONTRIBUTING.md
 include LICENSE.txt
 include README.md
-
-# Grab everything in ./etc/
-recursive-include etc *
+include requirements/*.txt

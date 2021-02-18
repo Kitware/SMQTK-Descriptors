@@ -1,17 +1,12 @@
+import pickle
 import unittest
 
 import numpy
-import six
-from six.moves import cPickle as pickle
 
-from smqtk.representation.data_element.memory_element import (
-    BYTES_CONFIG_ENCODING,
-    DataMemoryElement,
-)
-from smqtk.representation.descriptor_element.local_elements import \
-    DescriptorMemoryElement
-from smqtk.representation.descriptor_set.memory import MemoryDescriptorSet
-from smqtk.utils.dict import merge_dict
+from smqtk_core.dict import merge_dict
+from smqtk_dataprovider.impls.data_element.memory import DataMemoryElement, BYTES_CONFIG_ENCODING
+from smqtk_descriptors.impls.descriptor_element.memory import DescriptorMemoryElement
+from smqtk_descriptors.impls.descriptor_set.memory import MemoryDescriptorSet
 
 
 RAND_UUID = 0
@@ -52,7 +47,7 @@ class TestMemoryDescriptorSet (unittest.TestCase):
     def test_from_config_null_cache_elem_type(self):
         # An empty cache should not trigger loading on construction.
         expected_empty_cache = DataMemoryElement()
-        dme_key = 'smqtk.representation.data_element.memory_element.DataMemoryElement'
+        dme_key = 'smqtk_dataprovider.impls.data_element.memory.DataMemoryElement'
         inst = MemoryDescriptorSet.from_config({
             'cache_element': {
                 'type': dme_key,
@@ -69,7 +64,7 @@ class TestMemoryDescriptorSet (unittest.TestCase):
         expected_cache = DataMemoryElement(bytes=pickle.dumps(expected_table))
         expected_cache_json_str = \
             expected_cache.get_bytes().decode(BYTES_CONFIG_ENCODING)
-        dme_key = 'smqtk.representation.data_element.memory_element.DataMemoryElement'
+        dme_key = 'smqtk_dataprovider.impls.data_element.memory.DataMemoryElement'
         inst = MemoryDescriptorSet.from_config({
             'cache_element': {
                 'type': dme_key,
@@ -114,7 +109,7 @@ class TestMemoryDescriptorSet (unittest.TestCase):
         )
 
         empty_elem = DataMemoryElement()
-        dme_key = 'smqtk.representation.data_element.memory_element.DataMemoryElement'
+        dme_key = 'smqtk_dataprovider.impls.data_element.memory.DataMemoryElement'
         self.assertEqual(
             MemoryDescriptorSet(empty_elem).get_config(),
             merge_dict(MemoryDescriptorSet.get_default_config(), {
@@ -313,5 +308,5 @@ class TestMemoryDescriptorSet (unittest.TestCase):
         i = MemoryDescriptorSet()
         descrs = [random_descriptor() for _ in range(100)]
         i.add_many_descriptors(descrs)
-        self.assertEqual(set(six.iteritems(i)),
+        self.assertEqual(set(i.items()),
                          set((d.uuid(), d) for d in descrs))

@@ -1,18 +1,19 @@
 import abc
 from collections import deque
+import logging
 from typing import Deque, List, Optional, Tuple
 
-from smqtk.algorithms import SmqtkAlgorithm
-from smqtk.representation import DescriptorElement, DescriptorElementFactory
-from smqtk.representation.descriptor_element.local_elements import \
-    DescriptorMemoryElement
-from smqtk.utils import ContentTypeValidator
+from smqtk_core import Configurable, Pluggable
+from smqtk_dataprovider import ContentTypeValidator
+from smqtk_descriptors import DescriptorElement, DescriptorElementFactory
+from smqtk_descriptors.impls.descriptor_element.memory import DescriptorMemoryElement
 
 
 DFLT_DESCRIPTOR_FACTORY = DescriptorElementFactory(DescriptorMemoryElement, {})
+LOG = logging.getLogger(__name__)
 
 
-class DescriptorGenerator (SmqtkAlgorithm, ContentTypeValidator):
+class DescriptorGenerator (Configurable, Pluggable, ContentTypeValidator):
     """
     Base abstract Feature Descriptor interface.
     """
@@ -132,7 +133,7 @@ class DescriptorGenerator (SmqtkAlgorithm, ContentTypeValidator):
             DataElement it was generated from.
         :rtype: collections.abc.Iterator[smqtk.representation.DescriptorElement]
         """
-        log_debug = self._log.debug
+        log_debug = LOG.debug
 
         # Parallel lists of (uuid, DescriptorElement, already-computed) triples
         #   for formulating the return yielding.
@@ -173,7 +174,8 @@ class DescriptorGenerator (SmqtkAlgorithm, ContentTypeValidator):
             for d_i, data in enumerate(data_iter):
                 data_uuid_ = data.uuid()
                 descr_elem_ = \
-                    descr_factory.new_descriptor(self.name, data_uuid_)
+                    descr_factory.new_descriptor(self.__class__.__name__,
+                                                 data_uuid_)
                 already_computed = not overwrite and descr_elem_.has_vector()
                 elem_and_status_q.append((descr_elem_, already_computed))
                 if not already_computed:

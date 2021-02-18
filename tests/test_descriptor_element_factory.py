@@ -2,10 +2,8 @@ import unittest
 
 import numpy
 
-from smqtk.representation import DescriptorElement
-from smqtk.representation import DescriptorElementFactory
-from smqtk.representation.descriptor_element.local_elements \
-    import DescriptorMemoryElement
+from smqtk_descriptors import DescriptorElement, DescriptorElementFactory
+from smqtk_descriptors.impls.descriptor_element.memory import DescriptorMemoryElement
 
 
 class DummyElementImpl (DescriptorElement):
@@ -101,7 +99,7 @@ class TestDescriptorElemFactory (unittest.TestCase):
     def test_configuration(self):
         c = DescriptorElementFactory.get_default_config()
         self.assertIsNone(c['type'])
-        dme_key = 'smqtk.representation.descriptor_element.local_elements.DescriptorMemoryElement'
+        dme_key = 'smqtk_descriptors.impls.descriptor_element.memory.DescriptorMemoryElement'
         self.assertIn(dme_key, c)
 
         c['type'] = dme_key

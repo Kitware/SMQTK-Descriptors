@@ -1,15 +1,21 @@
-import multiprocessing
+import logging
 from collections import defaultdict
+import multiprocessing
 
 import numpy
 
-from smqtk.representation import DescriptorElement
-from smqtk.utils.postgres import norm_psql_cmd_string, PsqlConnectionHelper
+from smqtk_dataprovider.utils.postgres import norm_psql_cmd_string, PsqlConnectionHelper
+from smqtk_descriptors import DescriptorElement
+
+
+LOG = logging.getLogger(__name__)
+
 
 # Try to import required modules
 try:
     import psycopg2  # type: ignore
-except ImportError:
+except ImportError as ex:
+    LOG.warning("Failed to import psycopg2: %s", str(ex))
     psycopg2 = None
 
 
@@ -72,7 +78,7 @@ class PostgresDescriptorElement (DescriptorElement):
     @classmethod
     def is_usable(cls):
         if psycopg2 is None:
-            cls.get_logger().warning("Not usable. Requires psycopg2 module")
+            LOG.warning("Not usable. Requires psycopg2 module")
             return False
         return True
 
@@ -474,7 +480,7 @@ class PostgresDescriptorElement (DescriptorElement):
 
             # Construct numpy array from buffer and return uuid, vector pairs
             for uuid, vector_buffer in sql_return:
-                yield (uuid, numpy.frombuffer(vector_buffer, cls.ARRAY_DTYPE))
+                yield uuid, numpy.frombuffer(vector_buffer, cls.ARRAY_DTYPE)
 
     def set_vector(self, new_vec):
         """

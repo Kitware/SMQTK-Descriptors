@@ -1,9 +1,9 @@
-from __future__ import division, print_function
 import unittest.mock as mock
-import numpy
 import unittest
 
-from smqtk.representation import DescriptorElement
+import numpy
+
+from smqtk_descriptors import DescriptorElement
 
 
 class DummyDescriptorElement (DescriptorElement):

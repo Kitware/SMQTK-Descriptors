@@ -1,18 +1,17 @@
-from smqtk.representation import \
-    SmqtkRepresentation, \
-    DescriptorElement
-from smqtk.utils.configuration import (
+from smqtk_core import Configurable
+from smqtk_core.configuration import (
     cls_conf_from_config_dict,
     cls_conf_to_config_dict,
     make_default_config,
 )
-from smqtk.utils.dict import merge_dict
+from smqtk_core.dict import merge_dict
+from smqtk_descriptors.interfaces.descriptor_element import DescriptorElement
 
 
 __author__ = "paul.tunison@kitware.com"
 
 
-class DescriptorElementFactory (SmqtkRepresentation):
+class DescriptorElementFactory (Configurable):
     """
     Factory class for producing DescriptorElement instances of a specified type
     and configuration.

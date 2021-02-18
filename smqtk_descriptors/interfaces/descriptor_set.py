@@ -1,10 +1,10 @@
 import abc
 
-from smqtk.representation import SmqtkRepresentation, DescriptorElement
-from smqtk.utils.plugin import Pluggable
+from smqtk_core import Configurable, Pluggable
+from smqtk_descriptors import DescriptorElement
 
 
-class DescriptorSet (SmqtkRepresentation, Pluggable):
+class DescriptorSet (Configurable, Pluggable):
     """
     Index of descriptors, keyed and query-able by descriptor UUID.
 

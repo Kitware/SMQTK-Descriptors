@@ -1,14 +1,15 @@
-import six
-from six.moves import cPickle as pickle
+import logging
+import pickle
+from typing import Dict, Hashable
 
-from smqtk.representation import DataElement, DescriptorSet
-from smqtk.utils import SimpleTimer
-from smqtk.utils.configuration import (
-    from_config_dict,
-    make_default_config,
-    to_config_dict
-)
-from smqtk.utils.dict import merge_dict
+from smqtk_core.configuration import from_config_dict, make_default_config, to_config_dict
+from smqtk_core.dict import merge_dict
+from smqtk_dataprovider import DataElement
+from smqtk_dataprovider.utils import SimpleTimer
+from smqtk_descriptors import DescriptorElement, DescriptorSet
+
+
+LOG = logging.getLogger(__name__)
 
 
 class MemoryDescriptorSet (DescriptorSet):
@@ -110,16 +111,16 @@ class MemoryDescriptorSet (DescriptorSet):
         super(MemoryDescriptorSet, self).__init__()
 
         # Mapping of descriptor UUID to the DescriptorElement instance.
-        #: :type: dict[collections.abc.Hashable, smqtk.representation.DescriptorElement]
-        self._table = {}
+        self._table: Dict[Hashable, DescriptorElement] = {}
         # Record of optional file cache we're using
         self.cache_element = cache_element
         self.pickle_protocol = pickle_protocol
 
         if cache_element and not cache_element.is_empty():
-            self._log.debug("Loading cached descriptor index table from %s "
-                            "element.", cache_element.__class__.__name__)
-            self._table = pickle.loads(cache_element.get_bytes())
+            LOG.debug(f"Loading cached descriptor index table from "
+                      f"{cache_element.__class__.__name__} element.")
+            self._table: Dict[Hashable, DescriptorElement] = pickle.loads(cache_element.get_bytes())
+            assert isinstance(self._table, dict), "Loaded cache structure was not a dictionary type!"
 
     def get_config(self):
         c = merge_dict(self.get_default_config(), {
@@ -132,7 +133,7 @@ class MemoryDescriptorSet (DescriptorSet):
 
     def cache_table(self):
         if self.cache_element and self.cache_element.writable():
-            with SimpleTimer("Caching descriptor table", self._log.debug):
+            with SimpleTimer("Caching descriptor table", LOG.debug):
                 self.cache_element.set_bytes(pickle.dumps(self._table,
                                                           self.pickle_protocol))
 
@@ -269,13 +270,13 @@ class MemoryDescriptorSet (DescriptorSet):
         self.cache_table()
 
     def iterkeys(self):
-        return six.iterkeys(self._table)
+        return self._table.keys()
 
     def iterdescriptors(self):
-        return six.itervalues(self._table)
+        return self._table.values()
 
     def iteritems(self):
-        return six.iteritems(self._table)
+        return self._table.items()
 
 
 SMQTK_PLUGIN_CLASS = MemoryDescriptorSet

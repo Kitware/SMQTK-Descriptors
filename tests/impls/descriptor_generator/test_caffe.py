@@ -7,20 +7,18 @@ import unittest.mock as mock
 import numpy
 import pytest
 
-from smqtk.algorithms.descriptor_generator import DescriptorGenerator
-from smqtk.algorithms.descriptor_generator.caffe_descriptor import (
-    caffe,
-    CaffeDescriptorGenerator
-)
-# Testing protected helper function
+from smqtk_core.configuration import configuration_test_helper, to_config_dict
+from smqtk_dataprovider.impls.data_element.file import DataFileElement
+from smqtk_dataprovider.impls.data_element.memory import DataMemoryElement
+
+from smqtk_descriptors import DescriptorGenerator
 # noinspection PyProtectedMember
-from smqtk.algorithms.descriptor_generator.caffe_descriptor import (
-    _process_load_img_array
+from smqtk_descriptors.impls.descriptor_generator.caffe1 import (
+    caffe,
+    CaffeDescriptorGenerator,
+    # Testing protected helper function
+    _process_load_img_array,
 )
-from smqtk.representation.data_element.file_element import DataFileElement
-from smqtk.representation.data_element.memory_element import DataMemoryElement
-from smqtk.representation.data_element.url_element import DataUrlElement
-from smqtk.utils.configuration import to_config_dict, configuration_test_helper
 
 from tests import TEST_DATA_DIR
 
@@ -31,9 +29,6 @@ from tests import TEST_DATA_DIR
 class TestCaffeDesctriptorGenerator (unittest.TestCase):
 
     hopper_image_fp = os.path.join(TEST_DATA_DIR, 'grace_hopper.png')
-    hopper_alexnet_fc7_descr_fp = os.path.join(
-        TEST_DATA_DIR, 'Hopper.alexnet_fc7_output.npy'
-    )
 
     # Dummy Caffe configuration files + weights
     # - weights is actually an empty file (0 bytes), which caffe treats
@@ -51,21 +46,6 @@ class TestCaffeDesctriptorGenerator (unittest.TestCase):
         os.path.join(TEST_DATA_DIR, 'caffe.dummy_mean.npy'),
         readonly=True
     )
-
-    @classmethod
-    def setup_class(cls):
-        cls.alexnet_prototxt_elem = DataUrlElement(
-            'https://data.kitware.com/api/v1/file/57e2f3fd8d777f10f26e532c'
-            '/download'
-        )
-        cls.alexnet_caffemodel_elem = DataUrlElement(
-            'https://data.kitware.com/api/v1/file/57dae22f8d777f10f26a2a86'
-            '/download'
-        )
-        cls.image_mean_proto_elem = DataUrlElement(
-            'https://data.kitware.com/api/v1/file/57dae0a88d777f10f26a2a82'
-            '/download'
-        )
 
     def test_impl_findable(self):
         self.assertIn(CaffeDescriptorGenerator,
@@ -103,7 +83,7 @@ class TestCaffeDesctriptorGenerator (unittest.TestCase):
             CaffeDescriptorGenerator(network_prototxt=None,
                                      network_model=self.dummy_caffe_model_elem)
 
-    @mock.patch('smqtk.algorithms.descriptor_generator.caffe_descriptor'
+    @mock.patch('smqtk_descriptors.impls.descriptor_generator.caffe1'
                 '.CaffeDescriptorGenerator._setup_network')
     def test_get_config(self, _m_cdg_setupNetwork):
         # Mocking set_network so we don't have to worry about actually
@@ -134,7 +114,7 @@ class TestCaffeDesctriptorGenerator (unittest.TestCase):
             expected_params[key] = to_config_dict(expected_params[key])
         assert g.get_config() == expected_params
 
-    @mock.patch('smqtk.algorithms.descriptor_generator.caffe_descriptor'
+    @mock.patch('smqtk_descriptors.impls.descriptor_generator.caffe1'
                 '.CaffeDescriptorGenerator._setup_network')
     def test_config_cycle(self, m_cdg_setup_network):
         """
@@ -174,7 +154,7 @@ class TestCaffeDesctriptorGenerator (unittest.TestCase):
             assert inst.input_scale == 8.9
             assert inst.threads == 7
 
-    @mock.patch('smqtk.algorithms.descriptor_generator.caffe_descriptor'
+    @mock.patch('smqtk_descriptors.impls.descriptor_generator.caffe1'
                 '.CaffeDescriptorGenerator._setup_network')
     def test_config_cycle_imagemean_nonevalued(self, m_cdg_setup_network):
         """
@@ -210,7 +190,7 @@ class TestCaffeDesctriptorGenerator (unittest.TestCase):
         }
         assert g1_config == g2.get_config() == expected_config
 
-    @mock.patch('smqtk.algorithms.descriptor_generator.caffe_descriptor'
+    @mock.patch('smqtk_descriptors.impls.descriptor_generator.caffe1'
                 '.CaffeDescriptorGenerator._setup_network')
     def test_config_cycle_imagemean_nonetyped(self, m_cdg_setup_network):
         """
@@ -247,7 +227,7 @@ class TestCaffeDesctriptorGenerator (unittest.TestCase):
         }
         assert g1_config == g2.get_config() == expected_config
 
-    @mock.patch('smqtk.algorithms.descriptor_generator.caffe_descriptor'
+    @mock.patch('smqtk_descriptors.impls.descriptor_generator.caffe1'
                 '.CaffeDescriptorGenerator._setup_network')
     def test_pickle_save_restore(self, m_cdg_setupNetwork):
         # Mocking set_network so we don't have to worry about actually
@@ -280,7 +260,7 @@ class TestCaffeDesctriptorGenerator (unittest.TestCase):
         self.assertIsInstance(g2, CaffeDescriptorGenerator)
         self.assertEqual(g.get_config(), g2.get_config())
 
-    @mock.patch('smqtk.algorithms.descriptor_generator.caffe_descriptor'
+    @mock.patch('smqtk_descriptors.impls.descriptor_generator.caffe1'
                 '.CaffeDescriptorGenerator._setup_network')
     def test_invalid_datatype(self, _m_cdg_setupNetwork):
         # Test that a data element with an incorrect content type for this
@@ -296,6 +276,10 @@ class TestCaffeDesctriptorGenerator (unittest.TestCase):
         bad_element = DataFileElement(
             os.path.join(TEST_DATA_DIR, 'test_file.dat'), readonly=True
         )
+        # implementation of _generate_arrays checks for self.network value, so
+        # let's set a dummy value to get to the other error condition we want
+        # to actually test.
+        g.network = mock.MagicMock(spec=caffe.Net)
         with pytest.raises(ValueError):
             list(g.generate_arrays([bad_element]))
 
@@ -339,22 +323,3 @@ class TestCaffeDesctriptorGenerator (unittest.TestCase):
                                      return_layer='fc', use_gpu=False)
         r = list(g._generate_arrays([]))
         assert r == []
-
-    @unittest.skipUnless(DataUrlElement.is_usable(),
-                         "URL resolution not functional")
-    def test_generate_arrays_from_url_hopper_description(self):
-        # Caffe AlexNet interaction test (Grace Hopper image)
-        # This is a long test since it has to download data for remote URIs
-        d = CaffeDescriptorGenerator(
-            self.alexnet_prototxt_elem,
-            self.alexnet_caffemodel_elem,
-            self.image_mean_proto_elem,
-            return_layer='fc7',
-            use_gpu=False,
-        )
-        hopper_elem = DataFileElement(self.hopper_image_fp, readonly=True)
-        expected_descr = numpy.load(self.hopper_alexnet_fc7_descr_fp)
-        descr_list = list(d._generate_arrays([hopper_elem]))
-        assert len(descr_list) == 1
-        descr = descr_list[0]
-        numpy.testing.assert_allclose(descr, expected_descr, atol=1e-4)
