@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 import ast
-import os
 from pathlib import Path
 import pkg_resources
 # noinspection PyUnresolvedReferences
 from pkg_resources.extern import packaging
-import re
 import setuptools
 from typing import cast, Generator, Iterable, List, Optional, Tuple, Union
 import urllib.parse
@@ -113,91 +111,42 @@ def parse_req_strip_version(filepath: Union[str, Path]) -> List[str]:
     ]
 
 
-PYTHON_FILE_RE = re.compile(r'.*\.(?:py[co]?)$')
-
-
-def find_package_datafiles(package_dir):
-    """ Return a list of non-python files in package source tree
-
-    File paths are relative to the top of the package directory provided.
+def ep_repeat(s: str) -> str:
     """
-    # TODO: Add exclusion list/glob/regex parameter if necessary.
-    non_python = set()
-    for dirpath, _, fnames in os.walk(package_dir):
-        non_python.update([os.path.relpath(os.path.join(dirpath, fp),
-                                           package_dir)
-                           for fp in fnames
-                           # Things that are NOT python files
-                           if PYTHON_FILE_RE.match(fp) is None])
-    return list(non_python)
+    Simple helper function that will repeat `s` in the format: f"{s} = {s}".
 
+    This is a simple helper function to shorted the redundant typing commonly
+    used in the entry-points section when registering plugins.
 
-def list_directory_files(dirpath, exclude_dirs=(), exclude_files=()):
+    :param s: String to repeat.
+    :return: Resultant string.
     """
-    List files and their parent directories in the format required for the
-    ``setup`` function ``data_files`` parameter:
-
-        ...
-        data_files=[
-            ('dir', 'root-relative-file-path'),
-            ...
-        ],
-        ...
-
-    This function is intended to effectively install a directory located in the
-    source root as is (e.g. the ``etc`` directory).
-
-    :param dirpath: Base directory to start with. The directory paths returned
-        start with this directory.
-    :param exclude_dirs: sequence if directory paths (starting from ``dirpath``)
-        that should not be included. For example, we don't want the `bin/memex'
-        directory to be installed, when gathering data files for `bin`, we call
-        this function like:
-
-            list_directory_files('bin', ['bin/memex'])
-    :param exclude_files: File names to ignore in directories traversed.
-
-    """
-    exclude_dirs = set(ed.strip(' /') for ed in exclude_dirs)
-    exclude_files = set(ef.strip() for ef in exclude_files)
-    file_paths = []
-    for dirpath, dnames, fnames in os.walk(dirpath):
-        # Filter out directories to be excluded
-        for dn in dnames:
-            if os.path.join(dirpath, dn) in exclude_dirs:
-                print("skipping:", os.path.join(dirpath, dn))
-                del dnames[dnames.index(dn)]
-        # filter out excluded files
-        fnames = set(fnames).difference(exclude_files)
-        # collect directory to file paths reference
-        file_paths.append(
-            (dirpath, [os.path.join(dirpath, fn) for fn in fnames])
-        )
-    return file_paths
+    return f"{s} = {s}"
 
 
 ################################################################################
 
-PYTHON_SRC = 'python'
-PACKAGE_NAME = "smqtk"
+PACKAGE_NAME = "smqtk_descriptors"
 SETUP_DIR = Path(__file__).parent
 
 with open(SETUP_DIR / "README.md") as f:
     LONG_DESCRIPTION = f.read()
 
-VERSION = parse_version(SETUP_DIR / PYTHON_SRC / PACKAGE_NAME / "__init__.py")
+VERSION = parse_version(SETUP_DIR / PACKAGE_NAME / "__init__.py")
 
 
 if __name__ == "__main__":
     setuptools.setup(
         name=PACKAGE_NAME,
         version=VERSION,
-        description='Python toolkit for pluggable algorithms and data structures '
-                    'for multimedia-based machine learning',
+        description=(
+            "Algorithms, data structures and utilities around computing"
+            "descriptor vectors from data."
+        ),
         long_description=LONG_DESCRIPTION,
         author='Kitware, Inc.',
         author_email='smqtk-developers@kitware.com',
-        url='https://github.com/Kitware/SMQTK',
+        url='https://github.com/Kitware/smqtk-descriptors',
         license='BSD 3-Clause',
         classifiers=[
             'Development Status :: 3 - Alpha',
@@ -210,107 +159,42 @@ if __name__ == "__main__":
             'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: 3.7',
             'Programming Language :: Python :: 3.8',
+            'Programming Language :: Python :: 3.9',
             'Topic :: Scientific/Engineering :: Artificial Intelligence',
-            'Topic :: Scientific/Engineering :: Image Recognition'
         ],
         platforms=[
             'Linux',
-            'Max OS-X',
+            'Mac OS-X',
             'Unix',
             # 'Windows',  # Not tested yet
         ],
 
-        package_dir={'': PYTHON_SRC},
-        packages=setuptools.find_packages(PYTHON_SRC),
-        package_data={
-            'smqtk': find_package_datafiles(os.path.join(PYTHON_SRC, 'smqtk'))
-        },
-        data_files=list_directory_files('etc'),
+        packages=setuptools.find_packages(exclude=['tests']),
+        package_data={PACKAGE_NAME: ["py.typed"]},
         # Required for mypy to be able to find the installed package.
         # https://mypy.readthedocs.io/en/latest/installed_packages.html#installed-packages
         zip_safe=False,
 
         install_requires=parse_req_strip_version(SETUP_DIR / "requirements" / "runtime.txt"),
         extras_require={
-            # Various optional dependencies for plugins
+            'ci': parse_req_strip_version(SETUP_DIR / "requirements" / "ci.txt"),
             'docs': parse_req_strip_version(SETUP_DIR / "requirements" / "docs.txt"),
-            'caffe': [
-                'protobuf',
-                'scikit-image',
-            ],
-            'magic': [
-                'file-magic',
-            ],
-            'flann': [
-                'pyflann>=1.8.4',
-            ],
-            'libmagic': [
-                'file-magic',
-            ],
-            'postgres': [
-                'psycopg2-binary',
-            ],
-            'solr': [
-                'solrpy',
-            ],
-            'girder': [
-                'girder-client',
-            ],
+            'test': parse_req_strip_version(SETUP_DIR / "requirements" / "test.txt"),
         },
 
-        # See entry_points/console_scripts as the preferred method for publishing
-        #   executable scripts. Might have redesign how scripts are done if that is
-        #   to be used...
-        # TODO: Rename camel-case scripts to ``smqtk-...`` format without camel-case
         entry_points={
-            'smqtk_plugins': [
-                # Included batteries!
-                # Algorithms
-                "smqtk.algorithms.classifier._plugins = smqtk.algorithms.classifier._plugins",
-                "smqtk.algorithms.descriptor_generator._plugins = smqtk.algorithms.descriptor_generator._plugins",
-                "smqtk.algorithms.image_io._plugins = smqtk.algorithms.image_io._plugins",
-                "smqtk.algorithms.nn_index._plugins = smqtk.algorithms.nn_index._plugins",
-                "smqtk.algorithms.nn_index.hash_index._plugins = smqtk.algorithms.nn_index.hash_index._plugins",
-                "smqtk.algorithms.nn_index.lsh.functors._plugins = smqtk.algorithms.nn_index.lsh.functors._plugins",
-                "smqtk.algorithms.rank_relevancy._plugins = smqtk.algorithms.rank_relevancy._plugins",
-                "smqtk.algorithms.relevancy_index._plugins = smqtk.algorithms.relevancy_index._plugins",
-                # Representations
-                "smqtk.representation.classification_element._plugins"
-                " = smqtk.representation.classification_element._plugins",
-                "smqtk.representation.data_element._plugins = smqtk.representation.data_element._plugins",
-                "smqtk.representation.data_set._plugins = smqtk.representation.data_set._plugins",
-                "smqtk.representation.descriptor_element._plugins = smqtk.representation.descriptor_element._plugins",
-                "smqtk.representation.descriptor_set._plugins = smqtk.representation.descriptor_set._plugins",
-                "smqtk.representation.detection_element._plugins = smqtk.representation.detection_element._plugins",
-                "smqtk.representation.key_value._plugins = smqtk.representation.key_value._plugins",
-                # Web
-                "smqtk.web._plugins = smqtk.web._plugins",
-            ],
-            'console_scripts': [
-                'classifier_kfold_validation = smqtk.bin.classifier_kfold_validation:classifier_kfold_validation',
-                'classifier_model_validation = smqtk.bin.classifier_model_validation:main',
-                'smqtk-classify-files = smqtk.bin.classifyFiles:main ',
-                'compute_classifications = smqtk.bin.compute_classifications:main',
-                'compute_hash_codes = smqtk.bin.compute_hash_codes:main',
-                'compute_many_descriptors = smqtk.bin.compute_many_descriptors:main',
-                'smqtk-compute-descriptor = smqtk.bin.computeDescriptor:main',
-                'smqtk-create-file-ingest = smqtk.bin.createFileIngest:main',
-                'smqtk-create-girder-ingest = smqtk.bin.createGirderIngest:main',
-                'descriptors_to_svmtrain = smqtk.bin.descriptors_to_svmtrainfile:main',
-                'generate_image_transform = smqtk.bin.generate_image_transform:main',
-                'iqr_app_model_generation = smqtk.bin.iqr_app_model_generation:main',
-                'iqrTrainClassifier = smqtk.bin.iqrTrainClassifier:main',
-                'make_balltree = smqtk.bin.make_balltree:main',
-                'minibatch_kmeans_clusters = smqtk.bin.minibatch_kmeans_clusters:main',
-                'smqtk-remove-old-files = smqtk.bin.removeOldFiles:main',
-                'smqtk-proxy-manager-server = smqtk.bin.proxyManagerServer:main',
-                'runApplication = smqtk.bin.runApplication:main',
-                'smqtk-summarize-plugins = smqtk.bin.summarizePlugins:main',
-                'train_itq = smqtk.bin.train_itq:main',
-                'smqtk-make-train-test-sets = smqtk.bin.make_train_test_sets:main',
-                'smqtk-nearest-neighbors = smqtk.bin.nearest_neighbors:main',
-                'smqtk-check-images = smqtk.bin.check_images:main',
-                'smqtk-nn-index-tool = smqtk.bin.nn_index_tool:cli_group',
-            ]
+            'smqtk_plugins': {
+                # DescriptorElement
+                ep_repeat("smqtk_descriptors.impls.descriptor_element.file"),
+                ep_repeat("smqtk_descriptors.impls.descriptor_element.memory"),
+                ep_repeat("smqtk_descriptors.impls.descriptor_element.postgres"),
+                ep_repeat("smqtk_descriptors.impls.descriptor_element.solr"),
+                # DescriptorGenerator
+                ep_repeat("smqtk_descriptors.impls.descriptor_generator.caffe1"),
+                # DescriptorSet
+                ep_repeat("smqtk_descriptors.impls.descriptor_set.memory"),
+                ep_repeat("smqtk_descriptors.impls.descriptor_set.postgres"),
+                ep_repeat("smqtk_descriptors.impls.descriptor_set.solr"),
+            }
         }
     )
