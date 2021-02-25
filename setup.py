@@ -140,13 +140,13 @@ if __name__ == "__main__":
         name=PACKAGE_NAME,
         version=VERSION,
         description=(
-            "Algorithms, data structures and utilities around computing"
+            "Algorithms, data structures and utilities around computing "
             "descriptor vectors from data."
         ),
         long_description=LONG_DESCRIPTION,
         author='Kitware, Inc.',
         author_email='smqtk-developers@kitware.com',
-        url='https://github.com/Kitware/smqtk-descriptors',
+        url='https://github.com/Kitware/SMQTK-Descriptors',
         license='BSD 3-Clause',
         classifiers=[
             'Development Status :: 3 - Alpha',

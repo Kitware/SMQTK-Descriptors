@@ -67,6 +67,12 @@ download:dep-smqtk-dataprovider:
   script:
     # Aligned with smqtk-dataprovider's "publish:generic_latest_wheel" job
     # Custom CI Variables - SMQTK_DP_PROJECT_ID
+    - |
+      if [[ "$SMQTK_DP_PROJECT_ID" = "" ]]
+      then
+        echo "ERROR: Env var has no value => SMQTK_DP_PROJECT_ID"
+        exit 1
+      fi
     - 'wget --header="JOB-TOKEN: $CI_JOB_TOKEN" ${CI_API_V4_URL}/projects/${SMQTK_DP_PROJECT_ID}/packages/generic/latest_wheel/0.0.0/smqtk-dataprovider-latest.tgz'
     - tar xvf smqtk-dataprovider-latest.tgz -C local-deps
 
