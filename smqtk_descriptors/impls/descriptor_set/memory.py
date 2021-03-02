@@ -1,6 +1,6 @@
 import logging
 import pickle
-from typing import Dict, Hashable
+from typing import Any, Dict, Hashable, Iterable, Iterator, Optional, Tuple, Type, TypeVar
 
 from smqtk_core.configuration import from_config_dict, make_default_config, to_config_dict
 from smqtk_core.dict import merge_dict
@@ -10,6 +10,8 @@ from smqtk_descriptors import DescriptorElement, DescriptorSet
 
 
 LOG = logging.getLogger(__name__)
+# Type variable for Configurable-inheriting types.
+MDS = TypeVar("MDS", bound="MemoryDescriptorSet")
 
 
 class MemoryDescriptorSet (DescriptorSet):
@@ -25,19 +27,18 @@ class MemoryDescriptorSet (DescriptorSet):
     """
 
     @classmethod
-    def is_usable(cls):
+    def is_usable(cls) -> bool:
         """
         Check whether this class is available for use.
 
         :return: Boolean determination of whether this implementation is usable.
-        :rtype: bool
 
         """
         # no dependencies
         return True
 
     @classmethod
-    def get_default_config(cls):
+    def get_default_config(cls) -> Dict[str, Any]:
         """
         Generate and return a default configuration dictionary for this class.
         This will be primarily used for generating what the configuration
@@ -53,7 +54,6 @@ class MemoryDescriptorSet (DescriptorSet):
         from this method is valid for construction of an instance of this class.
 
         :return: Default configuration dictionary for the class.
-        :rtype: dict
 
         """
         c = super(MemoryDescriptorSet, cls).get_default_config()
@@ -61,21 +61,22 @@ class MemoryDescriptorSet (DescriptorSet):
         return c
 
     @classmethod
-    def from_config(cls, config_dict, merge_default=True):
+    def from_config(
+        cls: Type[MDS],
+        config_dict: Dict,
+        merge_default: bool = True
+    ) -> MDS:
         """
         Instantiate a new instance of this class given the configuration
         JSON-compliant dictionary encapsulating initialization arguments.
 
         :param config_dict: JSON compliant dictionary encapsulating
             a configuration.
-        :type config_dict: dict
 
         :param merge_default: Merge the given configuration on top of the
             default provided by ``get_default_config``.
-        :type merge_default: bool
 
         :return: Constructed instance from the provided config.
-        :rtype: MemoryDescriptorSet
 
         """
         if merge_default:
@@ -92,7 +93,11 @@ class MemoryDescriptorSet (DescriptorSet):
 
         return super(MemoryDescriptorSet, cls).from_config(config_dict, False)
 
-    def __init__(self, cache_element=None, pickle_protocol=-1):
+    def __init__(
+        self,
+        cache_element: Optional[DataElement] = None,
+        pickle_protocol: int = -1
+    ):
         """
         Initialize a new in-memory descriptor index, or reload one from a
         cache.
@@ -100,12 +105,10 @@ class MemoryDescriptorSet (DescriptorSet):
         :param cache_element: Optional data element cache, loading an existing
             index if the element has bytes. If the given element is writable,
              new descriptors added to this index are cached to the element.
-        :type cache_element: None | smqtk.representation.DataElement
 
         :param pickle_protocol: Pickling protocol to use when serializing index
             table to the optionally provided, writable cache element. We will
             use -1 by default (latest version, probably a binary form).
-        :type pickle_protocol: int
 
         """
         super(MemoryDescriptorSet, self).__init__()
@@ -119,10 +122,10 @@ class MemoryDescriptorSet (DescriptorSet):
         if cache_element and not cache_element.is_empty():
             LOG.debug(f"Loading cached descriptor index table from "
                       f"{cache_element.__class__.__name__} element.")
-            self._table: Dict[Hashable, DescriptorElement] = pickle.loads(cache_element.get_bytes())
+            self._table = pickle.loads(cache_element.get_bytes())
             assert isinstance(self._table, dict), "Loaded cache structure was not a dictionary type!"
 
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         c = merge_dict(self.get_default_config(), {
             "pickle_protocol": self.pickle_protocol,
         })
@@ -131,37 +134,35 @@ class MemoryDescriptorSet (DescriptorSet):
                        to_config_dict(self.cache_element))
         return c
 
-    def cache_table(self):
+    def cache_table(self) -> None:
         if self.cache_element and self.cache_element.writable():
             with SimpleTimer("Caching descriptor table", LOG.debug):
                 self.cache_element.set_bytes(pickle.dumps(self._table,
                                                           self.pickle_protocol))
 
-    def count(self):
+    def count(self) -> int:
         return len(self._table)
 
-    def clear(self):
+    def clear(self) -> None:
         """
         Clear this descriptor index's entries.
         """
         self._table = {}
         self.cache_table()
 
-    def has_descriptor(self, uuid):
+    def has_descriptor(self, uuid: Hashable) -> bool:
         """
         Check if a DescriptorElement with the given UUID exists in this index.
 
         :param uuid: UUID to query for
-        :type uuid: collections.abc.Hashable
 
         :return: True if a DescriptorElement with the given UUID exists in this
             index, or False if not.
-        :rtype: bool
 
         """
         return uuid in self._table
 
-    def add_descriptor(self, descriptor, no_cache=False):
+    def add_descriptor(self, descriptor: DescriptorElement) -> None:
         """
         Add a descriptor to this index.
 
@@ -169,96 +170,106 @@ class MemoryDescriptorSet (DescriptorSet):
         copies of the descriptor in the index.
 
         :param descriptor: Descriptor to index.
-        :type descriptor: smqtk.representation.DescriptorElement
+        """
+        self._inner_add_descriptor(descriptor, no_cache=False)
 
+    def _inner_add_descriptor(
+        self,
+        descriptor: DescriptorElement,
+        no_cache: bool = False
+    ) -> None:
+        """
+        Internal adder with the additional option to trigger caching or not.
+
+        :param descriptor: Descriptor to index.
         :param no_cache: Do not cache the internal table if a file cache was
             provided. This would be used if adding many descriptors at a time,
             preventing a file write for every individual descriptor added.
-        :type no_cache: bool
-
         """
         self._table[descriptor.uuid()] = descriptor
         if not no_cache:
             self.cache_table()
 
-    def add_many_descriptors(self, descriptors):
+    def add_many_descriptors(self, descriptors: Iterable[DescriptorElement]) -> None:
         """
         Add multiple descriptors at one time.
 
         :param descriptors: Iterable of descriptor instances to add to this
             index.
-        :type descriptors:
-            collections.abc.Iterable[smqtk.representation.DescriptorElement]
 
         """
         added_something = False
         for d in descriptors:
             # using no-cache so we don't trigger multiple file writes
-            self.add_descriptor(d, no_cache=True)
+            self._inner_add_descriptor(d, no_cache=True)
             added_something = True
         if added_something:
             self.cache_table()
 
-    def get_descriptor(self, uuid):
+    def get_descriptor(self, uuid: Hashable) -> DescriptorElement:
         """
         Get the descriptor in this index that is associated with the given UUID.
 
         :param uuid: UUID of the DescriptorElement to get.
-        :type uuid: collections.abc.Hashable
 
         :raises KeyError: The given UUID doesn't associate to a
             DescriptorElement in this index.
 
         :return: DescriptorElement associated with the queried UUID.
-        :rtype: smqtk.representation.DescriptorElement
 
         """
         return self._table[uuid]
 
-    def get_many_descriptors(self, uuids):
+    def get_many_descriptors(self, uuids: Iterable[Hashable]) -> Iterator[DescriptorElement]:
         """
         Get an iterator over descriptors associated to given descriptor UUIDs.
 
         :param uuids: Iterable of descriptor UUIDs to query for.
-        :type uuids: collections.abc.Iterable[collections.abc.Hashable]
 
         :raises KeyError: A given UUID doesn't associate with a
             DescriptorElement in this index.
 
         :return: Iterator of descriptors associated to given uuid values.
-        :rtype: __generator[smqtk.representation.DescriptorElement]
 
         """
         for uid in uuids:
             yield self._table[uid]
 
-    def remove_descriptor(self, uuid, no_cache=False):
+    def remove_descriptor(self, uuid: Hashable) -> None:
         """
         Remove a descriptor from this index by the given UUID.
 
         :param uuid: UUID of the DescriptorElement to remove.
-        :type uuid: collections.abc.Hashable
 
         :raises KeyError: The given UUID doesn't associate to a
             DescriptorElement in this index.
 
+        """
+        self._inner_remove_descriptor(uuid, no_cache=False)
+
+    def _inner_remove_descriptor(
+        self,
+        uuid: Hashable,
+        no_cache: bool = False
+    ) -> None:
+        """
+        Internal remover with the additional option to trigger caching or not.
+
+        :param uuid: UUID of the DescriptorElement to remove.
         :param no_cache: Do not cache the internal table if a file cache was
             provided. This would be used if adding many descriptors at a time,
             preventing a file write for every individual descriptor added.
-        :type no_cache: bool
-
         """
         del self._table[uuid]
         if not no_cache:
             self.cache_table()
 
-    def remove_many_descriptors(self, uuids):
+    def remove_many_descriptors(self, uuids: Iterable[Hashable]) -> None:
         """
         Remove descriptors associated to given descriptor UUIDs from this
         index.
 
         :param uuids: Iterable of descriptor UUIDs to remove.
-        :type uuids: collections.abc.Iterable[collections.abc.Hashable]
 
         :raises KeyError: A given UUID doesn't associate with a
             DescriptorElement in this index.
@@ -266,17 +277,14 @@ class MemoryDescriptorSet (DescriptorSet):
         """
         for uid in uuids:
             # using no-cache so we don't trigger multiple file writes
-            self.remove_descriptor(uid, no_cache=True)
+            self._inner_remove_descriptor(uid, no_cache=True)
         self.cache_table()
 
-    def iterkeys(self):
-        return self._table.keys()
+    def iterkeys(self) -> Iterator[Hashable]:
+        return iter(self._table.keys())
 
-    def iterdescriptors(self):
-        return self._table.values()
+    def iterdescriptors(self) -> Iterator[DescriptorElement]:
+        return iter(self._table.values())
 
-    def iteritems(self):
-        return self._table.items()
-
-
-SMQTK_PLUGIN_CLASS = MemoryDescriptorSet
+    def iteritems(self) -> Iterator[Tuple[Hashable, DescriptorElement]]:
+        return iter(self._table.items())

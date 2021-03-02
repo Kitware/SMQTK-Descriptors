@@ -290,6 +290,15 @@ class TestMemoryDescriptorSet (unittest.TestCase):
         self.assertEqual(set(i.iterdescriptors()),
                          set(descrs[1:]).difference(rm_d))
 
+    def test_natural_iter(self):
+        """Test that iterating over the descriptor set appropriately
+        yields the descriptor element contents."""
+        i = MemoryDescriptorSet()
+        descrs = [random_descriptor() for _ in range(100)]
+        i.add_many_descriptors(descrs)
+        self.assertEqual(set(i),
+                         set(descrs))
+
     def test_iterdescrs(self):
         i = MemoryDescriptorSet()
         descrs = [random_descriptor() for _ in range(100)]
