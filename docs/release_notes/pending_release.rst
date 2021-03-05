@@ -21,3 +21,9 @@ Descriptor Set
     specifically caused an issue with `iterdescriptors` as it is used in the
     parent-class definition of ``__iter__``, which requires that an
     iterator-type be returned.
+
+Misc.
+
+* Fixed issue with packages specifier in ``setup.py`` where it was only
+  excluding the top-level ``tests`` module but including the rest. Fixed to
+  only explicitly include the ``smqtk_descriptors`` package and submodules.

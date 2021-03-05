@@ -169,7 +169,7 @@ if __name__ == "__main__":
             # 'Windows',  # Not tested yet
         ],
 
-        packages=setuptools.find_packages(exclude=['tests']),
+        packages=setuptools.find_packages(include=[f'{PACKAGE_NAME}*']),
         package_data={PACKAGE_NAME: ["py.typed"]},
         # Required for mypy to be able to find the installed package.
         # https://mypy.readthedocs.io/en/latest/installed_packages.html#installed-packages
