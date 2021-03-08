@@ -1,3 +1,4 @@
+from typing import Any, Dict, Generator, Hashable, Iterable, Iterator, Tuple
 import unittest
 import unittest.mock as mock
 
@@ -6,80 +7,80 @@ from smqtk_descriptors import DescriptorElement, DescriptorSet
 
 class DummyDescriptorSet (DescriptorSet):
 
-    @classmethod
-    def is_usable(cls):
-        return True
-
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         pass
 
-    def get_descriptor(self, uuid):
+    def get_descriptor(self, uuid: Hashable) -> DescriptorElement:
         pass
 
-    def get_many_descriptors(self, uuids):
+    def get_many_descriptors(self, uuids: Iterable[Hashable]) -> Iterator[DescriptorElement]:
         pass
 
-    def iterkeys(self):
+    def iterkeys(self) -> Iterator[Hashable]:
         pass
 
-    def iteritems(self):
+    def iteritems(self) -> Iterator[Tuple[Hashable, DescriptorElement]]:
         pass
 
-    def iterdescriptors(self):
+    def iterdescriptors(self) -> Iterator[DescriptorElement]:
         pass
 
-    def remove_many_descriptors(self, uuids):
+    def remove_many_descriptors(self, uuids: Iterable[Hashable]) -> None:
         pass
 
-    def has_descriptor(self, uuid):
+    def has_descriptor(self, uuid: Hashable) -> bool:
         pass
 
-    def add_many_descriptors(self, descriptors):
+    def add_many_descriptors(self, descriptors: Iterable[DescriptorElement]) -> None:
         pass
 
-    def count(self):
+    def count(self) -> int:
         pass
 
-    def clear(self):
+    def clear(self) -> None:
         pass
 
-    def remove_descriptor(self, uuid):
+    def remove_descriptor(self, uuid: Hashable) -> None:
         pass
 
-    def add_descriptor(self, descriptor):
+    def add_descriptor(self, descriptor: DescriptorElement) -> None:
         pass
 
 
 class TestDescriptorSetAbstract (unittest.TestCase):
 
-    def test_len(self):
+    def test_len(self) -> None:
         di = DummyDescriptorSet()
-        di.count = mock.Mock(return_value=100)
+        # noinspection PyTypeHints
+        di.count = mock.Mock(return_value=100)  # type: ignore
         self.assertEqual(len(di), 100)
         di.count.assert_called_once_with()
 
-    def test_get_item(self):
+    def test_get_item(self) -> None:
         di = DummyDescriptorSet()
-        di.get_descriptor = mock.Mock(return_value='foo')
+        # noinspection PyTypeHints
+        di.get_descriptor = mock.Mock(return_value='foo')  # type: ignore
         self.assertEqual(di['some_key'], 'foo')
         di.get_descriptor.assert_called_once_with('some_key')
 
-    def test_del_item(self):
+    def test_del_item(self) -> None:
         di = DummyDescriptorSet()
-        di.remove_descriptor = mock.Mock()
+        # noinspection PyTypeHints
+        di.remove_descriptor = mock.Mock()  # type: ignore
 
         del di['foo']
         di.remove_descriptor.assert_called_once_with('foo')
 
-    def test_iter(self):
+    def test_iter(self) -> None:
         # Iterating over a DescriptorSet should yield the descriptor elements
         di = DummyDescriptorSet()
 
-        def dumb_iterator():
+        def dumb_iterator() -> Generator[int, None, None]:
             for _i in range(3):
                 yield _i
 
-        di.iterdescriptors = mock.Mock(side_effect=dumb_iterator)
+        # noinspection PyTypeHints
+        di.iterdescriptors = mock.Mock(side_effect=dumb_iterator)  # type: ignore
 
         for i, v in enumerate(iter(di)):
             self.assertEqual(i, v)
@@ -89,10 +90,11 @@ class TestDescriptorSetAbstract (unittest.TestCase):
 
     @mock.patch("smqtk_descriptors.interfaces.descriptor_set.DescriptorElement"
                 ".get_many_vectors", wraps=DescriptorElement.get_many_vectors)
-    def test_get_many_vectors_empty(self, m_de_gmv):
+    def test_get_many_vectors_empty(self, m_de_gmv: mock.MagicMock) -> None:
         """ Test that no vectors are returned when no UIDs are provided. """
         inst = DummyDescriptorSet()
-        inst.get_many_descriptors = mock.Mock(return_value=[])
+        # noinspection PyTypeHints
+        inst.get_many_descriptors = mock.Mock(return_value=[])  # type: ignore
         r = inst.get_many_vectors([])
         assert r == []
         m_de_gmv.assert_called_once_with([])

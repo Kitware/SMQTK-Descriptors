@@ -1,6 +1,6 @@
 import abc
 from collections import defaultdict
-from typing import Any, Dict
+from typing import Any, Dict, Generator, Hashable, Iterable, List, Mapping, Optional, Tuple, Type, TypeVar
 
 import numpy
 
@@ -9,16 +9,19 @@ from smqtk_core.dict import merge_dict
 from smqtk_descriptors.utils.parallel import parallel_map
 
 
-def _uuid_and_vector_from_descriptor(descriptor):
+T = TypeVar("T", bound="DescriptorElement")
+
+
+def _uuid_and_vector_from_descriptor(
+    descriptor: "DescriptorElement"
+) -> Tuple[Hashable, numpy.ndarray]:
     """
     Given a descriptor, return a tuple containing the UUID and associated
     vector for that descriptor
 
     :param descriptor: The descriptor to process.
-    :type descriptor: smqtk.representation.descriptor_element.DescriptorElement
     :return: Tuple containing the UUID and associated vector for the given
         descriptor
-    :rtype: tuple[collections.abc.Hashable, numpy.ndarray]
     """
     return descriptor.uuid(), descriptor.vector()
 
@@ -38,53 +41,48 @@ class DescriptorElement (Configurable, Pluggable):
     up for discussion).
 
     Stored vectors should be effectively immutable.
-
     """
 
-    def __init__(self, type_str, uuid):
+    def __init__(self, type_str: str, uuid: Hashable):
         """
         Initialize a new descriptor element.
 
         :param type_str: Type of descriptor. This is usually the name of the
             content descriptor that generated this vector.
-        :type type_str: str
-
         :param uuid: Unique ID reference of the descriptor.
-        :type uuid: collections.abc.Hashable
-
         """
         super(DescriptorElement, self).__init__()
 
         self._type_label = type_str
         self._uuid = uuid
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.uuid())
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if isinstance(other, DescriptorElement):
             return numpy.array_equal(self.vector(), other.vector())
         return False
 
-    def __ne__(self, other):
+    def __ne__(self, other: Any) -> bool:
         return not (self == other)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "%s{type: %s, uuid: %s}" % (self.__class__.__name__, self.type(),
                                            self.uuid())
 
-    def __getstate__(self):
+    def __getstate__(self) -> Dict[str, Any]:
         return {
             "_type_label": self._type_label,
             "_uuid": self._uuid,
         }
 
-    def __setstate__(self, state):
+    def __setstate__(self, state: Mapping[str, Any]) -> None:
         self._type_label = state['_type_label']
         self._uuid = state['_uuid']
 
     @classmethod
-    def get_default_config(cls):
+    def get_default_config(cls) -> Dict[str, Any]:
         """
         Generate and return a default configuration dictionary for this class.
         This will be primarily used for generating what the configuration
@@ -101,8 +99,6 @@ class DescriptorElement (Configurable, Pluggable):
         from this method is valid for construction of an instance of this class.
 
         :return: Default configuration dictionary for the class.
-        :rtype: dict
-
         """
         # similar to parent impl, except we remove the ``type_str`` and ``uuid``
         # configuration parameters as they are to be specified at runtime.
@@ -111,31 +107,27 @@ class DescriptorElement (Configurable, Pluggable):
         del dc['type_str'], dc['uuid']
         return dc
 
-    # noinspection PyMethodOverriding
     @classmethod
-    def from_config(cls, config_dict, type_str, uuid, merge_default=True):
+    def from_config(  # type: ignore
+        cls: Type[T],
+        config_dict: Dict,
+        type_str: str,
+        uuid: Hashable,
+        merge_default: bool = True
+    ) -> T:
         """
         Instantiate a new instance of this class given the desired type, uuid,
         and JSON-compliant configuration dictionary.
 
         :param type_str: Type of descriptor. This is usually the name of the
             content descriptor that generated this vector.
-        :type type_str: str
-
         :param uuid: Unique ID reference of the descriptor.
-        :type uuid: collections.abc.Hashable
-
         :param config_dict: JSON compliant dictionary encapsulating
             a configuration.
-        :type config_dict: dict
-
         :param merge_default: Merge the given configuration on top of the
             default provided by ``get_default_config``.
-        :type merge_default: bool
 
         :return: Constructed instance from the provided config.
-        :rtype: DescriptorElement
-
         """
         c: Dict[str, Any] = {}
         merge_dict(c, config_dict)
@@ -143,23 +135,24 @@ class DescriptorElement (Configurable, Pluggable):
         c['uuid'] = uuid
         return super(DescriptorElement, cls).from_config(c, merge_default)
 
-    def uuid(self):
+    def uuid(self) -> Hashable:
         """
         :return: Unique ID for this vector.
-        :rtype: collections.abc.Hashable
         """
         return self._uuid
 
-    def type(self):
+    def type(self) -> str:
         """
         :return: Type label type of the DescriptorGenerator that generated this
             vector.
-        :rtype: str
         """
         return self._type_label
 
     @classmethod
-    def _get_many_vectors(cls, descriptors):
+    def _get_many_vectors(
+        cls,
+        descriptors: Iterable["DescriptorElement"]
+    ) -> Generator[Tuple[Hashable, Optional[numpy.ndarray]], None, None]:
         """
         Internal method to be overridden by subclasses to return many vectors
         associated with given descriptors.
@@ -171,14 +164,10 @@ class DescriptorElement (Configurable, Pluggable):
             of None for missing values.
 
         :param descriptors: Iterable of descriptors to query for.
-        :type descriptors: collections.abc.Iterable[
-            smqtk.representation.descriptor_element.DescriptorElement]
 
         :return: Iterator of tuples containing the descriptor uuid and the
             vector associated with the given descriptors or None if the
             descriptor has no associated vector
-        :rtype: collections.abc.Iterable[
-            tuple[collections.abc.Hashable, Union[numpy.ndarray, None]]]
         """
         for uuid_vector_pair in parallel_map(
                 _uuid_and_vector_from_descriptor, descriptors,
@@ -186,7 +175,7 @@ class DescriptorElement (Configurable, Pluggable):
             yield uuid_vector_pair
 
     @classmethod
-    def get_many_vectors(cls, descriptors):
+    def get_many_vectors(cls, descriptors: Iterable["DescriptorElement"]) -> List[Optional[numpy.ndarray]]:
         """
         Get an iterator over vectors associated with given descriptors.
 
@@ -197,13 +186,10 @@ class DescriptorElement (Configurable, Pluggable):
             subclass.
 
         :param descriptors: Iterable of descriptors to query for.
-        :type descriptors: collections.abc.Iterable[
-            smqtk.representation.descriptor_element.DescriptorElement]
 
         :return: Iterable of vectors associated with the given descriptors or
             None if the descriptor has no associated vector. Results are
             returned in the order that descriptors were given.
-        :rtype: list[numpy.ndarray | None]
         """
         batch_dictionary = defaultdict(list)
         uuid_indices = {}
@@ -235,23 +221,21 @@ class DescriptorElement (Configurable, Pluggable):
     #
 
     @abc.abstractmethod
-    def has_vector(self):
+    def has_vector(self) -> bool:
         """
         :return: Whether or not this container current has a descriptor vector
             stored.
-        :rtype: bool
         """
 
     @abc.abstractmethod
-    def vector(self):
+    def vector(self) -> Optional[numpy.ndarray]:
         """
         :return: Get the stored descriptor vector as a numpy array. This returns
             None of there is no vector stored in this container.
-        :rtype: numpy.ndarray or None
         """
 
     @abc.abstractmethod
-    def set_vector(self, new_vec):
+    def set_vector(self, new_vec: numpy.ndarray) -> "DescriptorElement":
         """
         Set the contained vector.
 
@@ -259,9 +243,6 @@ class DescriptorElement (Configurable, Pluggable):
         overwrite it.
 
         :param new_vec: New vector to contain.
-        :type new_vec: numpy.ndarray
 
         :returns: Self.
-        :rtype: DescriptorMemoryElement
-
         """

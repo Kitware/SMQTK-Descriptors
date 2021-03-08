@@ -1,13 +1,17 @@
 import random
+from typing import Any, Callable, List
 import unittest
 
 from smqtk_descriptors.utils.parallel import parallel_map
 
 
 class TestParallelMap (unittest.TestCase):
+    test_string: List[str]
+    test_func: Callable
+    expected: List[int]
 
     @classmethod
-    def setup_class(cls):
+    def setup_class(cls) -> None:
         n = 10000
 
         # Random characters in range [a, z]
@@ -17,29 +21,29 @@ class TestParallelMap (unittest.TestCase):
         # built-in map function.
         cls.expected = list(map(cls.test_func, cls.test_string))
 
-    def test_simple_ordered_threaded(self):
+    def test_simple_ordered_threaded(self) -> None:
         # Make sure results are still in order as requested
         r = list(parallel_map(self.test_func, self.test_string,
                               ordered=True, use_multiprocessing=False))
         self.assertEqual(r, self.expected)
 
-    def test_simple_ordered_multiprocess(self):
+    def test_simple_ordered_multiprocess(self) -> None:
         r = list(parallel_map(self.test_func, self.test_string,
                               ordered=True, use_multiprocessing=True))
         self.assertEqual(r, self.expected)
 
-    def test_simple_unordered_threaded(self):
+    def test_simple_unordered_threaded(self) -> None:
         r = list(parallel_map(self.test_func, self.test_string,
                               ordered=False, use_multiprocessing=False))
         self.assertEqual(set(r), set(self.expected))
 
-    def test_simple_unordered_multiprocess(self):
+    def test_simple_unordered_multiprocess(self) -> None:
         r = list(parallel_map(self.test_func, self.test_string,
                               ordered=False, use_multiprocessing=True))
         self.assertEqual(set(r), set(self.expected))
 
-    def test_exception_handing_threaded(self):
-        def raise_ex(_):
+    def test_exception_handing_threaded(self) -> None:
+        def raise_ex(_: Any) -> None:
             raise RuntimeError("Expected exception")
 
         self.assertRaises(
@@ -48,8 +52,8 @@ class TestParallelMap (unittest.TestCase):
             parallel_map(raise_ex, [1], use_multiprocessing=False)
         )
 
-    def test_exception_handing_multiprocess(self):
-        def raise_ex(_):
+    def test_exception_handing_multiprocess(self) -> None:
+        def raise_ex(_: Any) -> None:
             raise RuntimeError("Expected exception")
 
         self.assertRaises(
@@ -58,8 +62,8 @@ class TestParallelMap (unittest.TestCase):
             parallel_map(raise_ex, [1], use_multiprocessing=True)
         )
 
-    def test_multisequence(self):
-        def test_func(a, b, c):
+    def test_multisequence(self) -> None:
+        def test_func(a: int, b: int, c: int) -> int:
             return a + b + c
 
         s1 = [1] * 10
@@ -71,8 +75,8 @@ class TestParallelMap (unittest.TestCase):
         expected = [6] * 10
         self.assertEqual(r, expected)
 
-    def test_multisequence_short_cutoff(self):
-        def test_func(a, b, c):
+    def test_multisequence_short_cutoff(self) -> None:
+        def test_func(a: int, b: int, c: int) -> int:
             return a + b + c
 
         s1 = [1] * 10
@@ -85,8 +89,8 @@ class TestParallelMap (unittest.TestCase):
         exp = [6] * 4
         self.assertEqual(r, exp)
 
-    def test_multisequence_fill_void(self):
-        def test_func(a, b, c):
+    def test_multisequence_fill_void(self) -> None:
+        def test_func(a: int, b: int, c: int) -> int:
             return a + b + c
 
         s1 = [1] * 10
@@ -100,7 +104,7 @@ class TestParallelMap (unittest.TestCase):
         expected = [6] * 4 + [14] * 6
         self.assertEqual(r, expected)
 
-    def test_nested_multiprocessing(self):
+    def test_nested_multiprocessing(self) -> None:
         # char -> char -> ord -> char -> ord
         g1 = parallel_map(lambda e: e, self.test_string,
                           ordered=True,
@@ -125,7 +129,7 @@ class TestParallelMap (unittest.TestCase):
             expected
         )
 
-    def test_nested_threading(self):
+    def test_nested_threading(self) -> None:
         # char -> char -> ord -> char -> ord
         g1 = parallel_map(lambda e: e, self.test_string,
                           ordered=True,

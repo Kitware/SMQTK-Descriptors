@@ -1,3 +1,4 @@
+from typing import Any, Dict, Generator, Iterable, List, Set
 import unittest
 import unittest.mock as mock
 
@@ -15,27 +16,27 @@ class DummyDescriptorGenerator (DescriptorGenerator):
     """
 
     @classmethod
-    def is_usable(cls):
+    def is_usable(cls) -> bool:
         return True
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         # Stub "method" for testing functionality is called post-final-yield.
         self._post_iterator_check = mock.Mock()
 
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         return {}
 
-    def valid_content_types(self):
-        return {}
+    def valid_content_types(self) -> Set[str]:
+        return set()
 
-    def _generate_arrays(self, data_iter):
+    def _generate_arrays(self, data_iter: Iterable[DataElement]) -> Iterable[numpy.ndarray]:
         # Make sure we go through iter, yielding "arrays"
         for i, d in enumerate(data_iter):
             yield [i]
         self._post_iterator_check()
 
-    def _generate_too_many_arrays(self, data_iter):
+    def _generate_too_many_arrays(self, data_iter: Iterable[DataElement]) -> Generator:
         """
         Swap-in generator to test error checking on over generation.
         """
@@ -45,7 +46,7 @@ class DummyDescriptorGenerator (DescriptorGenerator):
         yield [-2]
         self._post_iterator_check()
 
-    def _generate_too_few_arrays(self, data_iter):
+    def _generate_too_few_arrays(self, data_iter: Iterable[DataElement]) -> Generator:
         """
         Swap-in generator to test error checking on under generation.
         """
@@ -64,11 +65,12 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
     Test abstract super-class functionality where there is any
     """
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.inst = DummyDescriptorGenerator()
-        self.inst.valid_content_types = mock.Mock(return_value={'image/png'})
+        # noinspection PyTypeHints
+        self.inst.valid_content_types = mock.Mock(return_value={'image/png'})  # type: ignore
 
-    def test_generate_arrays_invalid_type(self):
+    def test_generate_arrays_invalid_type(self) -> None:
         """ Test that the raise-valid-element method catches an invalid input
         data type. """
         # Using dummy to pull in integrated mixin class functionality.
@@ -87,7 +89,7 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         # function should not be expected to have been called.
         inst._post_iterator_check.assert_not_called()
 
-    def test_generate_arrays_valid_type(self):
+    def test_generate_arrays_valid_type(self) -> None:
         """ Test passing "valid" data elements causing dummy array returns."""
         # Using dummy to pull in integrated mixin class functionality.
         inst = self.inst
@@ -111,30 +113,30 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         # Complete iteration should cause post-yield method to be called.
         inst._post_iterator_check.assert_called_once()
 
-    def test_generate_arrays_empty_iter(self):
+    def test_generate_arrays_empty_iter(self) -> None:
         """ Test that we correctly return an empty generator if an empty
         iterable is provided. """
         # Using dummy to pull in integrated mixin class functionality.
         inst = self.inst
 
-        expected_vectors = []
+        expected_vectors: List[numpy.ndarray] = []
         actual_vectors = list(inst.generate_arrays([]))
         assert actual_vectors == expected_vectors
 
         # Complete iteration should cause post-yield method to be called.
         inst._post_iterator_check.assert_called_once()
 
-    def test_generate_elements_empty_iter(self):
+    def test_generate_elements_empty_iter(self) -> None:
         """ Test that we correctly return an empty generator if an empty
         iterable is provided. """
-        expected_elems = []
+        expected_elems: List[DataElement] = []
         actual_elems = list(self.inst.generate_elements([]))
         assert actual_elems == expected_elems
 
         # Complete iteration should cause post-yield method to be called.
         self.inst._post_iterator_check.assert_called_once()
 
-    def test_generate_elements_bad_content_type(self):
+    def test_generate_elements_bad_content_type(self) -> None:
         """ Test that a ValueError occurs if one or more data elements passed
         are not considered to have valid content types. """
         d = mock.Mock(spec=DataElement)
@@ -149,7 +151,7 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         # function should not be expected to have been called.
         self.inst._post_iterator_check.assert_not_called()
 
-    def test_generate_elements_impl_over_generate_elements(self):
+    def test_generate_elements_impl_over_generate_elements(self) -> None:
         """
         Test that an error is thrown when an implementation that returns more
         vectors than data elements (IndexError).
@@ -172,7 +174,8 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         m_fact.new_descriptor.return_value = m_descr_elem
 
         # Mock generator instance to return
-        self.inst._generate_arrays = self.inst._generate_too_many_arrays
+        # noinspection PyTypeHints
+        self.inst._generate_arrays = self.inst._generate_too_many_arrays  # type: ignore
 
         # TODO: Check index error message when fail
         with pytest.raises(IndexError):
@@ -183,7 +186,7 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         # function should not be expected to have been called.
         self.inst._post_iterator_check.assert_not_called()
 
-    def test_generate_elements_impl_under_generate_elements(self):
+    def test_generate_elements_impl_under_generate_elements(self) -> None:
         """
         Test that an error is thrown when an implementation that returns less
         vectors than data elements.
@@ -207,7 +210,7 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         m_fact.new_descriptor.return_value = m_descr_elem
 
         # Mock generator instance to return
-        self.inst._generate_arrays = self.inst._generate_too_few_arrays
+        self.inst._generate_arrays = self.inst._generate_too_few_arrays  # type: ignore
 
         with pytest.raises(IndexError):
             list(self.inst.generate_elements(data_iter, descr_factory=m_fact,
@@ -217,7 +220,7 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         # post-yield method should have been called.
         self.inst._post_iterator_check.assert_called_once()
 
-    def test_generate_elements_non_preexisting(self):
+    def test_generate_elements_non_preexisting(self) -> None:
         """ Test generating descriptor elements where none produced by the
         factory have existing vectors, i.e. all data elements are passed to
         underlying generation method. """
@@ -256,7 +259,7 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         # Complete iteration should cause post-yield method to be called.
         self.inst._post_iterator_check.assert_called_once()
 
-    def test_generate_elements_all_preexisting(self):
+    def test_generate_elements_all_preexisting(self) -> None:
         """ Test that no descriptors are computed if all generated descriptor
         elements report as having a vector and overwrite is False. """
         # Mock data element input
@@ -290,7 +293,7 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         # Complete iteration should cause post-yield method to be called.
         self.inst._post_iterator_check.assert_called_once()
 
-    def test_generate_elements_all_preexisting_overwrite(self):
+    def test_generate_elements_all_preexisting_overwrite(self) -> None:
         """ Test that descriptors are computed even though the generated
         elements (mocked) report as having a vector.
         """
@@ -326,7 +329,7 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         # Complete iteration should cause post-yield method to be called.
         self.inst._post_iterator_check.assert_called_once()
 
-    def test_generate_elements_mixed_precomp(self):
+    def test_generate_elements_mixed_precomp(self) -> None:
         """ Test that a setup of factory-produced elements having and not
         having pre-existing vectors results in all returns. """
         # Mock data/descriptor element pairs, storing state for testing.
@@ -348,7 +351,7 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
             m_descr_elems.append(desc)
 
         # Mock factory since we want to control has-vec return logic.
-        def m_fact_newdesc(_, uuid):
+        def m_fact_newdesc(_: Any, uuid: int) -> DescriptorElement:
             return dict(enumerate(m_descr_elems))[uuid]
 
         m_fact = \
@@ -381,7 +384,7 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         # Complete iteration should cause post-yield method to be called.
         self.inst._post_iterator_check.assert_called_once()
 
-    def test_generate_one_array(self):
+    def test_generate_one_array(self) -> None:
         """ Test that the one-array wrapper performs as expected.
         """
         m_d = mock.Mock(spec=DataElement)
@@ -394,7 +397,7 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         # Complete iteration should cause post-yield method to be called.
         self.inst._post_iterator_check.assert_called_once()
 
-    def test_generate_one_element(self):
+    def test_generate_one_element(self) -> None:
         """ Test that the one-element wrapper performs as expected.
         Using default factory/overwrite params (memory, False).
         """

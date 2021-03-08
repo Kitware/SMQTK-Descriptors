@@ -30,3 +30,5 @@ Misc.
 * Fixed issue with packages specifier in ``setup.py`` where it was only
   excluding the top-level ``tests`` module but including the rest. Fixed to
   only explicitly include the ``smqtk_descriptors`` package and submodules.
+
+* Fixed issues with type checking mypy tests exposed with more strict settings.

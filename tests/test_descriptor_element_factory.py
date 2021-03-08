@@ -1,3 +1,4 @@
+from typing import Any, Dict, Hashable, Optional
 import unittest
 
 import numpy
@@ -8,50 +9,46 @@ from smqtk_descriptors.impls.descriptor_element.memory import DescriptorMemoryEl
 
 class DummyElementImpl (DescriptorElement):
 
-    @classmethod
-    def is_usable(cls):
-        return True
-
-    def __init__(self, type_str, uuid, *args, **kwds):
+    def __init__(self, type_str: str, uuid: Hashable, *args: Any, **kwds: Any):
         super(DummyElementImpl, self).__init__(type_str, uuid)
         self.args = args
         self.kwds = kwds
 
-    def set_vector(self, new_vec):
+    def set_vector(self, new_vec: numpy.ndarray) -> "DummyElementImpl":
         return self
 
-    def has_vector(self):
+    def has_vector(self) -> bool:
         pass
 
-    def vector(self):
+    def vector(self) -> Optional[numpy.ndarray]:
         pass
 
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         pass
 
 
 class TestDescriptorElemFactory (unittest.TestCase):
 
-    def test_no_params(self):
-        test_params = {}
+    def test_no_params(self) -> None:
+        test_params: Dict[str, Any] = {}
 
         factory = DescriptorElementFactory(DummyElementImpl, test_params)
 
         expected_type = 'type'
         expected_uuid = 'uuid'
         expected_args = ()
-        expected_kwds = {}
+        expected_kwds: Dict[str, Any] = {}
 
         # Should construct a new DEI instance under they hood somewhere
         r = factory.new_descriptor(expected_type, expected_uuid)
 
-        self.assertIsInstance(r, DummyElementImpl)
+        assert isinstance(r, DummyElementImpl)
         self.assertEqual(r._type_label, expected_type)
         self.assertEqual(r._uuid, expected_uuid)
         self.assertEqual(r.args, expected_args)
         self.assertEqual(r.kwds, expected_kwds)
 
-    def test_with_params(self):
+    def test_with_params(self) -> None:
         v = numpy.random.randint(0, 10, 10)
         test_params = {
             'p1': 'some dir',
@@ -67,13 +64,13 @@ class TestDescriptorElemFactory (unittest.TestCase):
         # Should construct a new DEI instance under they hood somewhere
         r = factory.new_descriptor(ex_type, ex_uuid)
 
-        self.assertIsInstance(r, DummyElementImpl)
+        assert isinstance(r, DummyElementImpl)
         self.assertEqual(r._type_label, ex_type)
         self.assertEqual(r._uuid, ex_uuid)
         self.assertEqual(r.args, ex_args)
         self.assertEqual(r.kwds, ex_kwds)
 
-    def test_call(self):
+    def test_call(self) -> None:
         # Same as `test_with_params` but using __call__ entry point
         v = numpy.random.randint(0, 10, 10)
         test_params = {
@@ -90,13 +87,13 @@ class TestDescriptorElemFactory (unittest.TestCase):
         # Should construct a new DEI instance under they hood somewhere
         r = factory(ex_type, ex_uuid)
 
-        self.assertIsInstance(r, DummyElementImpl)
+        assert isinstance(r, DummyElementImpl)
         self.assertEqual(r._type_label, ex_type)
         self.assertEqual(r._uuid, ex_uuid)
         self.assertEqual(r.args, ex_args)
         self.assertEqual(r.kwds, ex_kwds)
 
-    def test_configuration(self):
+    def test_configuration(self) -> None:
         c = DescriptorElementFactory.get_default_config()
         self.assertIsNone(c['type'])
         dme_key = 'smqtk_descriptors.impls.descriptor_element.memory.DescriptorMemoryElement'
@@ -112,7 +109,7 @@ class TestDescriptorElemFactory (unittest.TestCase):
         self.assertEqual(d.type(), 'test')
         self.assertEqual(d.uuid(), 'foo')
 
-    def test_get_config(self):
+    def test_get_config(self) -> None:
         """
         We should be able to get the configuration of the current factory.
         This should look like the same as the

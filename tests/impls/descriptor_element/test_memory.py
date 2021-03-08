@@ -10,7 +10,7 @@ from smqtk_descriptors.impls.descriptor_element.memory import DescriptorMemoryEl
 
 class TestDescriptorMemoryElement (unittest.TestCase):
 
-    def test_configuration(self):
+    def test_configuration(self) -> None:
         """ Test instance standard configuration """
         inst = DescriptorMemoryElement('test', 'abcd')
         for i in configuration_test_helper(inst, {'type_str', 'uuid'},
@@ -18,7 +18,7 @@ class TestDescriptorMemoryElement (unittest.TestCase):
             assert i.type() == 'test'
             assert i.uuid() == 'abcd'
 
-    def test_pickle_dump_load(self):
+    def test_pickle_dump_load(self) -> None:
         # Make a couple descriptors
         v1 = numpy.array([1, 2, 3])
         d1 = DescriptorMemoryElement('test', 0)
@@ -38,7 +38,7 @@ class TestDescriptorMemoryElement (unittest.TestCase):
         numpy.testing.assert_array_equal(v1, d1_r.vector())
         numpy.testing.assert_array_equal(v2, d2_r.vector())
 
-    def test_set_state_version_1(self):
+    def test_set_state_version_1(self) -> None:
         # Test support of older state version
         expected_type = 'test-type'
         expected_uid = 'test-uid'
@@ -50,13 +50,13 @@ class TestDescriptorMemoryElement (unittest.TestCase):
 
         # noinspection PyTypeChecker
         # - Using dummy data in constructor for testing __setstate__.
-        e = DescriptorMemoryElement(None, None)
+        e = DescriptorMemoryElement('unexpected-key', 'unexpected-uid')
         e.__setstate__((expected_type, expected_uid, expected_v_dump))
         self.assertEqual(e.type(), expected_type)
         self.assertEqual(e.uuid(), expected_uid)
         numpy.testing.assert_array_equal(e.vector(), expected_v)
 
-    def test_input_immutability(self):
+    def test_input_immutability(self) -> None:
         # make sure that data stored is not susceptible to shifts in the
         # originating data matrix they were pulled from.
 
@@ -109,7 +109,7 @@ class TestDescriptorMemoryElement (unittest.TestCase):
         numpy.testing.assert_equal(d2.vector(), t2)
         numpy.testing.assert_equal(d3.vector(), t3)
 
-    def test_output_immutability(self):
+    def test_output_immutability(self) -> None:
         # make sure that data stored is not susceptible to modifications after
         # extraction
         v = numpy.ones(16)
@@ -117,11 +117,14 @@ class TestDescriptorMemoryElement (unittest.TestCase):
         self.assertFalse(d.has_vector())
         d.set_vector(v)
         r = d.vector()
+        assert r is not None
         r[:] = 0
         self.assertEqual(r.sum(), 0)
-        self.assertEqual(d.vector().sum(), 16)
+        r_again = d.vector()
+        assert r_again is not None
+        self.assertEqual(r_again.sum(), 16)
 
-    def test_none_set(self):
+    def test_none_set(self) -> None:
         d = DescriptorMemoryElement('test', 0)
         self.assertFalse(d.has_vector())
 

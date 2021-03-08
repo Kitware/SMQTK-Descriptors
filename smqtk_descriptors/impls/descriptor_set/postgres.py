@@ -1,17 +1,15 @@
 """
-
 References:
-    [1] http://stackoverflow.com/questions/866465/sql-order-by-the-in-value-list
-        answer from "a_horse_with_no_name"
-
+    [1] https://stackoverflow.com/a/29598910
 """
 import logging
 import multiprocessing
 import pickle
+from typing import Any, Dict, Generator, Hashable, Iterable, Optional, Sequence, Tuple
 
 from smqtk_dataprovider.exceptions import ReadOnlyError
 from smqtk_dataprovider.utils.postgres import norm_psql_cmd_string, PsqlConnectionHelper
-from smqtk_descriptors import DescriptorSet
+from smqtk_descriptors import DescriptorElement, DescriptorSet
 
 
 LOG = logging.getLogger(__name__)
@@ -19,6 +17,7 @@ LOG = logging.getLogger(__name__)
 
 try:
     import psycopg2  # type: ignore
+    import psycopg2.extensions  # type: ignore
 except ImportError as ex:
     LOG.warning("Failed to import psycopg2: %s", str(ex))
     psycopg2 = None
@@ -114,48 +113,42 @@ class PostgresDescriptorSet (DescriptorSet):
     """)
 
     @classmethod
-    def is_usable(cls):
+    def is_usable(cls) -> bool:
         return psycopg2 is not None
 
-    def __init__(self, table_name='descriptor_set', uuid_col='uid',
-                 element_col='element',
-                 db_name='postgres', db_host=None, db_port=None, db_user=None,
-                 db_pass=None, multiquery_batch_size=1000, pickle_protocol=-1,
-                 read_only=False, create_table=True):
+    def __init__(
+        self,
+        table_name: str = 'descriptor_set',
+        uuid_col: str = 'uid',
+        element_col: str = 'element',
+        db_name: str = 'postgres',
+        db_host: Optional[str] = None,
+        db_port: Optional[int] = None,
+        db_user: Optional[str] = None,
+        db_pass: Optional[str] = None,
+        multiquery_batch_size: Optional[int] = 1000,
+        pickle_protocol: int = -1,
+        read_only: bool = False,
+        create_table: bool = True
+    ):
         """
         Initialize set instance.
 
         :param table_name: Name of the table to use.
-        :type table_name: str
-
         :param uuid_col: Name of the column containing the UUID signatures.
-        :type uuid_col: str
-
         :param element_col: Name of the table column that will contain
             serialized elements.
-        :type element_col: str
-
         :param db_name: The name of the database to connect to.
-        :type db_name: str
-
         :param db_host: Host address of the Postgres server. If None, we
             assume the server is on the local machine and use the UNIX socket.
             This might be a required field on Windows machines (not tested yet).
-        :type db_host: str | None
-
         :param db_port: Port the Postgres server is exposed on. If None, we
             assume the default port (5423).
-        :type db_port: int | None
-
         :param db_user: Postgres user to connect as. If None, postgres
             defaults to using the current accessing user account name on the
             operating system.
-        :type db_user: str | None
-
         :param db_pass: Password for the user we're connecting as. This may be
             None if no password is to be used.
-        :type db_pass: str | None
-
         :param multiquery_batch_size: For queries that handle sending or
             receiving many queries at a time, batch queries based on this size.
             If this is None, then no batching occurs.
@@ -165,23 +158,15 @@ class PostgresDescriptorSet (DescriptorSet):
             store the full query for all elements in RAM), but the transaction
             will be some amount slower due to splitting the query into multiple
             transactions.
-        :type multiquery_batch_size: int | None
-
         :param pickle_protocol: Pickling protocol to use. We will use -1 by
             default (latest version, probably binary).
-        :type pickle_protocol: int
-
         :param read_only: Only allow read actions against this set.
             Modification actions will throw a ReadOnlyError exceptions.
-        :type read_only: bool
-
         :param create_table: If this instance should try to create the storing
             table before actions are performed against it when not set to be
             read-only. If the configured user does not have sufficient
             permissions to create the table and it does not currently exist, an
             exception will be raised.
-        :type create_table: bool
-
         """
         super(PostgresDescriptorSet, self).__init__()
 
@@ -217,7 +202,7 @@ class PostgresDescriptorSet (DescriptorSet):
                 )
             )
 
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         return {
             "table_name": self.table_name,
             "uuid_col": self.uuid_col,
@@ -235,10 +220,9 @@ class PostgresDescriptorSet (DescriptorSet):
             "create_table": self.create_table,
         }
 
-    def count(self):
+    def count(self) -> int:
         """
         :return: Number of descriptor elements stored in this set.
-        :rtype: int | long
         """
         # Just count UUID column to limit data read.
         q = self.SELECT_TMPL.format(
@@ -246,7 +230,7 @@ class PostgresDescriptorSet (DescriptorSet):
             table_name=self.table_name,
         )
 
-        def exec_hook(cur):
+        def exec_hook(cur: psycopg2.extensions.cursor) -> None:
             cur.execute(q)
 
         # There's only going to be one row returned with one element in it.
@@ -254,10 +238,7 @@ class PostgresDescriptorSet (DescriptorSet):
             exec_hook, yield_result_rows=True
         ))[0][0]
 
-    def clear(self):
-        """
-        Clear this descriptor set's entries.
-        """
+    def clear(self) -> None:
         if self.read_only:
             raise ReadOnlyError("Cannot clear a read-only set.")
 
@@ -266,23 +247,12 @@ class PostgresDescriptorSet (DescriptorSet):
             uuid_col=self.uuid_col,
         )
 
-        def exec_hook(cur):
+        def exec_hook(cur: psycopg2.extensions.cursor) -> None:
             cur.execute(q, {'uuid_like': '%'})
 
         list(self.psql_helper.single_execute(exec_hook))
 
-    def has_descriptor(self, uuid):
-        """
-        Check if a DescriptorElement with the given UUID exists in this set.
-
-        :param uuid: UUID to query for
-        :type uuid: collections.abc.Hashable
-
-        :return: True if a DescriptorElement with the given UUID exists in this
-            set, or False if not.
-        :rtype: bool
-
-        """
+    def has_descriptor(self, uuid: Hashable) -> bool:
         q = self.SELECT_LIKE_TMPL.format(
             # hacking return value to something simple
             element_col='true',
@@ -290,7 +260,7 @@ class PostgresDescriptorSet (DescriptorSet):
             uuid_col=self.uuid_col,
         )
 
-        def exec_hook(cur):
+        def exec_hook(cur: psycopg2.extensions.cursor) -> None:
             cur.execute(q, {'uuid_like': str(uuid)})
 
         # Should either yield one or zero rows
@@ -298,7 +268,7 @@ class PostgresDescriptorSet (DescriptorSet):
             exec_hook, yield_result_rows=True
         )))
 
-    def add_descriptor(self, descriptor):
+    def add_descriptor(self, descriptor: DescriptorElement) -> None:
         """
         Add a descriptor to this set.
 
@@ -307,8 +277,6 @@ class PostgresDescriptorSet (DescriptorSet):
         overwrite set descriptors based on UUID.
 
         :param descriptor: Descriptor to set.
-        :type descriptor: smqtk.representation.DescriptorElement
-
         """
         if self.read_only:
             raise ReadOnlyError("Cannot clear a read-only set.")
@@ -325,12 +293,12 @@ class PostgresDescriptorSet (DescriptorSet):
             )
         }
 
-        def exec_hook(cur):
+        def exec_hook(cur: psycopg2.extensions.cursor) -> None:
             cur.execute(q, v)
 
         list(self.psql_helper.single_execute(exec_hook))
 
-    def add_many_descriptors(self, descriptors):
+    def add_many_descriptors(self, descriptors: Iterable[DescriptorElement]) -> None:
         """
         Add multiple descriptors at one time.
 
@@ -340,9 +308,6 @@ class PostgresDescriptorSet (DescriptorSet):
 
         :param descriptors: Iterable of descriptor instances to add to this
             set.
-        :type descriptors:
-            collections.abc.Iterable[smqtk.representation.DescriptorElement]
-
         """
         if self.read_only:
             raise ReadOnlyError("Cannot clear a read-only set.")
@@ -354,7 +319,7 @@ class PostgresDescriptorSet (DescriptorSet):
         )
 
         # Transform input into
-        def iter_elements():
+        def iter_elements() -> Generator[Dict[str, Any], None, None]:
             for d in descriptors:
                 yield {
                     'uuid_val': str(d.uuid()),
@@ -363,26 +328,23 @@ class PostgresDescriptorSet (DescriptorSet):
                     )
                 }
 
-        def exec_hook(cur, batch):
+        def exec_hook(cur: psycopg2.extensions.cursor, batch: Sequence[Dict[str, Any]]) -> None:
             cur.executemany(q, batch)
 
         LOG.debug("Adding many descriptors")
         list(self.psql_helper.batch_execute(iter_elements(), exec_hook,
                                             self.multiquery_batch_size))
 
-    def get_descriptor(self, uuid):
+    def get_descriptor(self, uuid: Hashable) -> DescriptorElement:
         """
         Get the descriptor in this set that is associated with the given UUID.
 
         :param uuid: UUID of the DescriptorElement to get.
-        :type uuid: collections.abc.Hashable
 
         :raises KeyError: The given UUID doesn't associate to a
             DescriptorElement in this set.
 
         :return: DescriptorElement associated with the queried UUID.
-        :rtype: smqtk.representation.DescriptorElement
-
         """
         q = self.SELECT_LIKE_TMPL.format(
             element_col=self.element_col,
@@ -391,7 +353,7 @@ class PostgresDescriptorSet (DescriptorSet):
         )
         v = {'uuid_like': str(uuid)}
 
-        def eh(c):
+        def eh(c: psycopg2.extensions.cursor) -> None:
             c.execute(q, v)
             if c.rowcount == 0:
                 raise KeyError(uuid)
@@ -403,19 +365,16 @@ class PostgresDescriptorSet (DescriptorSet):
         r = list(self.psql_helper.single_execute(eh, yield_result_rows=True))
         return pickle.loads(bytes(r[0][0]))
 
-    def get_many_descriptors(self, uuids):
+    def get_many_descriptors(self, uuids: Iterable[Hashable]) -> Generator[DescriptorElement, None, None]:
         """
         Get an iterator over descriptors associated to given descriptor UUIDs.
 
         :param uuids: Iterable of descriptor UUIDs to query for.
-        :type uuids: collections.abc.Iterable[collections.abc.Hashable]
 
         :raises KeyError: A given UUID doesn't associate with a
             DescriptorElement in this set.
 
         :return: Iterator of descriptors associated to given uuid values.
-        :rtype: __generator[smqtk.representation.DescriptorElement]
-
         """
         q = self.SELECT_MANY_ORDERED_TMPL.format(
             table_name=self.table_name,
@@ -427,12 +386,12 @@ class PostgresDescriptorSet (DescriptorSet):
         # order to raise a KeyError.
         uuid_order = []
 
-        def iterelems():
+        def iterelems() -> Generator[str, None, None]:
             for uid in uuids:
                 uuid_order.append(uid)
                 yield str(uid)
 
-        def exec_hook(cur, batch):
+        def exec_hook(cur: psycopg2.extensions.cursor, batch: Sequence[str]) -> None:
             v = {'uuid_list': batch}
             # LOG.debug('query: %s', cur.mogrify(q, v))
             cur.execute(q, v)
@@ -460,16 +419,14 @@ class PostgresDescriptorSet (DescriptorSet):
             # just report the first one that's bad
             raise KeyError(uuid_order[i])
 
-    def remove_descriptor(self, uuid):
+    def remove_descriptor(self, uuid: Hashable) -> None:
         """
         Remove a descriptor from this set by the given UUID.
 
         :param uuid: UUID of the DescriptorElement to remove.
-        :type uuid: collections.abc.Hashable
 
         :raises KeyError: The given UUID doesn't associate to a
             DescriptorElement in this set.
-
         """
         if self.read_only:
             raise ReadOnlyError("Cannot remove from a read-only set.")
@@ -480,7 +437,7 @@ class PostgresDescriptorSet (DescriptorSet):
         )
         v = {'uuid_like': str(uuid)}
 
-        def execute(c):
+        def execute(c: psycopg2.extensions.cursor) -> None:
             c.execute(q, v)
             # Nothing deleted if rowcount == 0
             # (otherwise 1 when deleted a thing)
@@ -489,16 +446,14 @@ class PostgresDescriptorSet (DescriptorSet):
 
         list(self.psql_helper.single_execute(execute))
 
-    def remove_many_descriptors(self, uuids):
+    def remove_many_descriptors(self, uuids: Iterable[Hashable]) -> None:
         """
         Remove descriptors associated to given descriptor UUIDs from this set.
 
         :param uuids: Iterable of descriptor UUIDs to remove.
-        :type uuids: collections.abc.Iterable[collections.abc.Hashable]
 
         :raises KeyError: A given UUID doesn't associate with a
             DescriptorElement in this set.
-
         """
         if self.read_only:
             raise ReadOnlyError("Cannot remove from a read-only set.")
@@ -510,7 +465,7 @@ class PostgresDescriptorSet (DescriptorSet):
         str_uuid_set = set(str(uid) for uid in uuids)
         v = {'uuid_tuple': tuple(str_uuid_set)}
 
-        def execute(c):
+        def execute(c: psycopg2.extensions.cursor) -> None:
             c.execute(q, v)
 
             # Check query UUIDs against rows that would actually be deleted.
@@ -521,10 +476,9 @@ class PostgresDescriptorSet (DescriptorSet):
 
         list(self.psql_helper.single_execute(execute))
 
-    def iterkeys(self):
+    def iterkeys(self) -> Generator[Hashable, None, None]:
         """
         Return an iterator over set descriptor keys, which are their UUIDs.
-        :rtype: collections.abc.Iterator[collections.abc.Hashable]
         """
         # Getting UUID through the element because the UUID might not be a
         # string type, and the true type is encoded with the DescriptorElement
@@ -532,12 +486,11 @@ class PostgresDescriptorSet (DescriptorSet):
         for d in self.iterdescriptors():
             yield d.uuid()
 
-    def iterdescriptors(self):
+    def iterdescriptors(self) -> Generator[DescriptorElement, None, None]:
         """
         Return an iterator over set descriptor element instances.
-        :rtype: collections.abc.Iterator[smqtk.representation.DescriptorElement]
         """
-        def execute(c):
+        def execute(c: psycopg2.extensions.cursor) -> None:
             c.execute(self.SELECT_TMPL.format(
                 col=self.element_col,
                 table_name=self.table_name
@@ -551,7 +504,7 @@ class PostgresDescriptorSet (DescriptorSet):
             d = pickle.loads(bytes(r[0]))
             yield d
 
-    def iteritems(self):
+    def iteritems(self) -> Generator[Tuple[Hashable, DescriptorElement], None, None]:
         """
         Return an iterator over set descriptor key and instance pairs.
         :rtype: collections.abc.Iterator[(collections.abc.Hashable,

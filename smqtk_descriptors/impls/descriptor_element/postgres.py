@@ -1,6 +1,7 @@
 import logging
 from collections import defaultdict
 import multiprocessing
+from typing import cast, Any, Dict, Generator, Hashable, Iterable, Mapping, Optional, Tuple
 
 import numpy
 
@@ -76,17 +77,27 @@ class PostgresDescriptorElement (DescriptorElement):
     """)
 
     @classmethod
-    def is_usable(cls):
+    def is_usable(cls) -> bool:
         if psycopg2 is None:
             LOG.warning("Not usable. Requires psycopg2 module")
             return False
         return True
 
-    def __init__(self, type_str, uuid,
-                 table_name='descriptors',
-                 uuid_col='uid', type_col='type_str', binary_col='vector',
-                 db_name='postgres', db_host=None, db_port=None, db_user=None,
-                 db_pass=None, create_table=True):
+    def __init__(
+        self,
+        type_str: str,
+        uuid: Hashable,
+        table_name: str = 'descriptors',
+        uuid_col: str = 'uid',
+        type_col: str = 'type_str',
+        binary_col: str = 'vector',
+        db_name: str = 'postgres',
+        db_host: Optional[str] = None,
+        db_port: Optional[int] = None,
+        db_user: Optional[str] = None,
+        db_pass: Optional[str] = None,
+        create_table: bool = True
+    ):
         """
         Initialize new PostgresDescriptorElement attached to some database
         credentials.
@@ -109,51 +120,27 @@ class PostgresDescriptorElement (DescriptorElement):
 
         :param type_str: Type of descriptor. This is usually the name of the
             content descriptor that generated this vector.
-        :type type_str: str
-
         :param uuid: Unique ID reference of the descriptor.
-        :type uuid: collections.abc.Hashable
-
         :param table_name: String label of the database table to use.
-        :type table_name: str
-
         :param uuid_col: The column label for descriptor UUID storage
-        :type uuid_col: str
-
         :param type_col: The column label for descriptor type string storage.
-        :type type_col: str
-
         :param binary_col: The column label for descriptor vector binary
             storage.
-        :type binary_col: str
-
+        :param db_name: The name of the database to connect to.
         :param db_host: Host address of the Postgres server. If None, we
             assume the server is on the local machine and use the UNIX socket.
             This might be a required field on Windows machines (not tested yet).
-        :type db_host: str | None
-
         :param db_port: Port the Postgres server is exposed on. If None, we
             assume the default port (5423).
-        :type db_port: int | None
-
-        :param db_name: The name of the database to connect to.
-        :type db_name: str
-
         :param db_user: Postgres user to connect as. If None, postgres
             defaults to using the current accessing user account name on the
             operating system.
-        :type db_user: str | None
-
         :param db_pass: Password for the user we're connecting as. This may be
             None if no password is to be used.
-        :type db_pass: str | None
-
         :param create_table: If this instance should try to create the storing
             table before actions are performed against it. If the configured
             user does not have sufficient permissions to create the table and it
             does not currently exist, an exception will be raised.
-        :type create_table: bool
-
         """
         super(PostgresDescriptorElement, self).__init__(type_str, uuid)
 
@@ -169,9 +156,9 @@ class PostgresDescriptorElement (DescriptorElement):
         self.db_user = db_user
         self.db_pass = db_pass
 
-        self._psql_helper = None
+        self._psql_helper: Optional[PsqlConnectionHelper] = None
 
-    def __getstate__(self):
+    def __getstate__(self) -> Dict[str, Any]:
         """
         Construct serialization state.
 
@@ -180,7 +167,6 @@ class PostgresDescriptorElement (DescriptorElement):
         discarding the instance upon serialization is that once deserialized
         elsewhere the helper instance will have to be created.  Since this
         creation post-deserialization only happens once, this is acceptable.
-
         """
         state = super(PostgresDescriptorElement, self).__getstate__()
         state.update({
@@ -197,7 +183,7 @@ class PostgresDescriptorElement (DescriptorElement):
         })
         return state
 
-    def __setstate__(self, state):
+    def __setstate__(self, state: Mapping[str, Any]) -> None:
         # Base DescriptorElement parts
         super(PostgresDescriptorElement, self).__setstate__(state)
         # Our parts
@@ -215,59 +201,48 @@ class PostgresDescriptorElement (DescriptorElement):
 
     @classmethod
     def _create_psql_helper(
-            cls, db_name, db_host, db_port, db_user, db_pass, table_name,
-            uuid_col, type_col, binary_col, itersize=1000, create_table=True):
+        cls,
+        db_name: str,
+        db_host: Optional[str],
+        db_port: Optional[int],
+        db_user: Optional[str],
+        db_pass: Optional[str],
+        table_name: str,
+        uuid_col: str,
+        type_col: str,
+        binary_col: str,
+        itersize: int = 1000,
+        create_table: bool = True
+    ) -> PsqlConnectionHelper:
         """
         Internal helper function for creating PSQL connection helpers for class
         instances.
 
         :param db_name: The name of the database to connect to.
-        :type db_name: str
-
         :param db_host: Host address of the Postgres server. If None, we
             assume the server is on the local machine and use the UNIX socket.
             This might be a required field on Windows machines (not tested yet).
-        :type db_host: str | None
-
         :param db_port: Port the Postgres server is exposed on. If None, we
             assume the default port (5423).
-        :type db_port: int | None
-
         :param db_user: Postgres user to connect as. If None, postgres
             defaults to using the current accessing user account name on the
             operating system.
-        :type db_user: str | None
-
         :param db_pass: Password for the user we're connecting as. This may be
             None if no password is to be used.
-        :type db_pass: str | None
-
         :param table_name: String label of the database table to use.
-        :type table_name: str
-
         :param uuid_col: The column label for descriptor UUID storage
-        :type uuid_col: str
-
         :param type_col: The column label for descriptor type string storage.
-        :type type_col: str
-
         :param binary_col: The column label for descriptor vector binary
             storage.
-        :type binary_col: str
-
         :param itersize: Number of records fetched per network round trip when
             iterating over a named cursor. This parameter only does anything if
             a named cursor is used.
-        :type itersize: int
-
         :param create_table: Whether to try to create the storing table before
             returning the connection helper. If the configured user does not
             have sufficient permissions to create the table and it does not
             currently exist, an exception will be raised.
-        :type create_table: bool
 
         :return: PsqlConnectionHelper utility.
-        :rtype: PsqlConnectionHelper
         """
         helper = PsqlConnectionHelper(
             db_name, db_host, db_port, db_user, db_pass,
@@ -286,11 +261,10 @@ class PostgresDescriptorElement (DescriptorElement):
 
         return helper
 
-    def _get_psql_helper(self):
+    def _get_psql_helper(self) -> PsqlConnectionHelper:
         """
         Internal method to create on demand the PSQL connection helper class.
         :return: PsqlConnectionHelper utility.
-        :rtype: PsqlConnectionHelper
         """
         if self._psql_helper is None:
             # Only using a transport iteration size of 1 since this element is
@@ -302,7 +276,7 @@ class PostgresDescriptorElement (DescriptorElement):
             )
         return self._psql_helper
 
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         return {
             "table_name": self.table_name,
             "uuid_col": self.uuid_col,
@@ -317,7 +291,7 @@ class PostgresDescriptorElement (DescriptorElement):
             "db_pass": self.db_pass,
         }
 
-    def has_vector(self):
+    def has_vector(self) -> bool:
         """
         Check if the target database has a vector for our keys.
 
@@ -328,8 +302,6 @@ class PostgresDescriptorElement (DescriptorElement):
 
         :return: Whether or not this container current has a descriptor vector
             stored.
-        :rtype: bool
-
         """
         # Very similar to vector query, but replacing vector binary return with
         # a true/null return. Save a little bit of time compared to testing
@@ -349,7 +321,8 @@ class PostgresDescriptorElement (DescriptorElement):
             "uuid_val": str(self.uuid())
         }
 
-        def cb(cursor):
+        # noinspection PyProtectedMember,PyUnresolvedReferences
+        def cb(cursor: psycopg2._psycopg.cursor) -> None:
             cursor.execute(q_select, q_select_values)
 
         # Should either yield one or zero rows.
@@ -358,14 +331,12 @@ class PostgresDescriptorElement (DescriptorElement):
             cb, yield_result_rows=True
         )))
 
-    def vector(self):
+    def vector(self) -> Optional[numpy.ndarray]:
         """
         Return this element's vector, or None if we don't have one.
 
         :return: Get the stored descriptor vector as a numpy array. This returns
             None of there is no vector stored in this container.
-        :rtype: numpy.ndarray or None
-
         """
         q_select = self.SELECT_TMPL.format(**{
             "binary_col": self.binary_col,
@@ -379,9 +350,8 @@ class PostgresDescriptorElement (DescriptorElement):
         }
 
         # query execution callback
-        # noinspection PyProtectedMember
-        def cb(cursor):
-            # type: (psycopg2._psycopg.cursor) -> None
+        # noinspection PyProtectedMember,PyUnresolvedReferences
+        def cb(cursor: psycopg2._psycopg.cursor) -> None:
             cursor.execute(q_select, q_select_values)
 
         # This should only fetch a single row.  Cannot yield more than one due
@@ -396,13 +366,15 @@ class PostgresDescriptorElement (DescriptorElement):
             return v
 
     @classmethod
-    def _sql_vector_query_options(cls, descriptor):
+    def _sql_vector_query_options(
+        cls,
+        descriptor: "PostgresDescriptorElement"
+    ) -> Tuple[str, Optional[str], Optional[int], Optional[str], Optional[str], str, str, str, str, str]:
         """
         Internal helper method to construct tuple of options used to construct
         sql query for given descriptor's vector.
 
         :return: Tuple of elements used to construct a SQL query
-        :rtype: tuple
         """
         return (
             descriptor.db_name,
@@ -418,7 +390,10 @@ class PostgresDescriptorElement (DescriptorElement):
         )
 
     @classmethod
-    def _get_many_vectors(cls, descriptors):
+    def _get_many_vectors(
+        cls,
+        descriptors: Iterable["DescriptorElement"]
+    ) -> Generator[Tuple[Hashable, Optional[numpy.ndarray]], None, None]:
         """
         Internal method to be overridden by subclasses to return many vectors
         associated with given descriptors.
@@ -440,8 +415,9 @@ class PostgresDescriptorElement (DescriptorElement):
             tuple[collections.abc.Hashable, Union[numpy.ndarray, None]]]
         """
         batch_dictionary = defaultdict(list)
-        # For each given descriptor...
-        for descriptor_ in descriptors:  # type: PostgresDescriptorElement
+        # For each given descriptor... assuming this is called "only" with
+        # PostgresDescriptorElement types.
+        for descriptor_ in cast(Iterable[PostgresDescriptorElement], descriptors):
             # Extract options for constructing SQL query used to
             # retrieve descriptor vectors
             batch_dictionary[
@@ -450,7 +426,7 @@ class PostgresDescriptorElement (DescriptorElement):
 
         # For each unique set of SQL query options...
         for query_options, uuids in batch_dictionary.items():
-            helper_kwargs = dict(zip(
+            helper_kwargs: Dict[str, Any] = dict(zip(
                 ['db_name', 'db_host', 'db_port', 'db_user', 'db_pass',
                  'table_name', 'uuid_col', 'type_col', 'binary_col'],
                 query_options[:-1]
@@ -470,7 +446,8 @@ class PostgresDescriptorElement (DescriptorElement):
                 "uuids_tuple": tuple(uuids)
             }
 
-            def query_callback(cursor):
+            # noinspection PyProtectedMember,PyUnresolvedReferences
+            def query_callback(cursor: psycopg2._psycopg.cursor) -> None:
                 cursor.execute(sql_query, sql_values)
 
             # Perform a SQL query to retrieve all vectors in this batch
@@ -482,7 +459,7 @@ class PostgresDescriptorElement (DescriptorElement):
             for uuid, vector_buffer in sql_return:
                 yield uuid, numpy.frombuffer(vector_buffer, cls.ARRAY_DTYPE)
 
-    def set_vector(self, new_vec):
+    def set_vector(self, new_vec: numpy.ndarray) -> "PostgresDescriptorElement":
         """
         Set the contained vector.
 
@@ -529,9 +506,8 @@ class PostgresDescriptorElement (DescriptorElement):
         }
 
         # query execution callback
-        # noinspection PyProtectedMember
-        def cb(cursor):
-            # type: (psycopg2._psycopg.cursor) -> None
+        # noinspection PyProtectedMember,PyUnresolvedReferences
+        def cb(cursor: psycopg2._psycopg.cursor) -> None:
             cursor.execute(q_upsert, q_upsert_values)
 
         # No return but need to force iteration.

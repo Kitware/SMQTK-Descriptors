@@ -1,3 +1,4 @@
+from typing import Any, Dict, Optional
 import unittest.mock as mock
 import unittest
 
@@ -8,101 +9,104 @@ from smqtk_descriptors import DescriptorElement
 
 class DummyDescriptorElement (DescriptorElement):
 
-    @classmethod
-    def is_usable(cls):
-        return True
-
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         """ stub """
 
-    def set_vector(self, new_vec):
+    def set_vector(self, new_vec: numpy.ndarray) -> "DescriptorElement":
         """ stub """
 
-    def has_vector(self):
+    def has_vector(self) -> bool:
         """ stub """
 
-    def vector(self):
+    def vector(self) -> Optional[numpy.ndarray]:
         """ stub """
 
 
 class TestDescriptorElementAbstract (unittest.TestCase):
 
-    def test_init(self):
+    def test_init(self) -> None:
         expected_uuid = 'some uuid'
         expected_type_str = 'some type'
         de = DummyDescriptorElement(expected_type_str, expected_uuid)
         self.assertEqual(de.type(), expected_type_str)
         self.assertEqual(de.uuid(), expected_uuid)
 
-    def test_equality(self):
+    def test_equality(self) -> None:
         de1 = DummyDescriptorElement('t', 'u1')
         de2 = DummyDescriptorElement('t', 'u2')
-        de1.vector = de2.vector = \
-            mock.Mock(return_value=numpy.random.randint(0, 10, 10))
+        # noinspection PyTypeHints
+        de1.vector = de2.vector = mock.Mock(return_value=numpy.random.randint(0, 10, 10))  # type: ignore
 
         self.assertTrue(de1 == de1)
         self.assertTrue(de2 == de2)
         self.assertTrue(de1 == de2)
         self.assertFalse(de1 != de2)
 
-    def test_equality_diffTypeStr(self):
+    def test_equality_diffTypeStr(self) -> None:
         # Type strings no longer considered in descriptor equality nor hashing.
         v = numpy.random.randint(0, 10, 10)
         d1 = DummyDescriptorElement('a', 'u')
         d2 = DummyDescriptorElement('b', 'u')
-        d1.vector = d2.vector = mock.Mock(return_value=v)
+        # noinspection PyTypeHints
+        d1.vector = d2.vector = mock.Mock(return_value=v)  # type: ignore
         self.assertFalse(d1 != d2)
         self.assertTrue(d1 == d2)
 
-    def test_nonEquality_diffInstance(self):
+    def test_nonEquality_diffInstance(self) -> None:
         # diff instance
         de = DummyDescriptorElement('a', 'b')
         self.assertFalse(de == 'string')
         self.assertTrue(de != 'string')
 
-    def test_nonEquality_diffVectors(self):
+    def test_nonEquality_diffVectors(self) -> None:
         # different vectors (same size)
         v1 = numpy.random.randint(0, 10, 10)
         v2 = numpy.random.randint(0, 10, 10)
 
         d1 = DummyDescriptorElement('a', 'b')
-        d1.vector = mock.Mock(return_value=v1)
+        # noinspection PyTypeHints
+        d1.vector = mock.Mock(return_value=v1)  # type: ignore
 
         d2 = DummyDescriptorElement('a', 'b')
-        d2.vector = mock.Mock(return_value=v2)
+        # noinspection PyTypeHints
+        d2.vector = mock.Mock(return_value=v2)  # type: ignore
 
         self.assertFalse(d1 == d2)
         self.assertTrue(d1 != d2)
 
-    def test_nonEquality_diffVectorSize(self):
+    def test_nonEquality_diffVectorSize(self) -> None:
         # different sized vectors
         v1 = numpy.random.randint(0, 10, 10)
         v2 = numpy.random.randint(0, 10, 100)
 
         d1 = DummyDescriptorElement('a', 'b')
-        d1.vector = mock.Mock(return_value=v1)
+        # noinspection PyTypeHints
+        d1.vector = mock.Mock(return_value=v1)  # type: ignore
 
         d2 = DummyDescriptorElement('a', 'b')
-        d2.vector = mock.Mock(return_value=v2)
+        # noinspection PyTypeHints
+        d2.vector = mock.Mock(return_value=v2)  # type: ignore
 
         self.assertFalse(d1 == d2)
         self.assertTrue(d1 != d2)
 
-    def test_get_many_vectors(self):
+    def test_get_many_vectors(self) -> None:
         v1 = numpy.random.randint(0, 10, 10)
         v2 = numpy.random.randint(0, 10, 100)
 
         d1 = DummyDescriptorElement('a', 'b')
-        d1.vector = mock.Mock(return_value=v1)
+        # noinspection PyTypeHints
+        d1.vector = mock.Mock(return_value=v1)  # type: ignore
 
         d2 = DummyDescriptorElement('a', 'c')
-        d2.vector = mock.Mock(return_value=v2)
+        # noinspection PyTypeHints
+        d2.vector = mock.Mock(return_value=v2)  # type: ignore
 
         retrieved_vectors = DummyDescriptorElement.get_many_vectors([d1, d2])
         for retrieved, expected in zip(retrieved_vectors, [v1, v2]):
             numpy.testing.assert_array_equal(retrieved, expected)
 
-    def test_hash(self):
+    def test_hash(self) -> None:
         # Hash of a descriptor element is solely based on the UUID value of
         # that element.
         t1 = 'a'
@@ -117,7 +121,7 @@ class TestDescriptorElementAbstract (unittest.TestCase):
         self.assertEqual(hash(de2), hash(uuid2))
         self.assertEqual(hash(de1), hash(de2))
 
-    def test_getstate(self):
+    def test_getstate(self) -> None:
         expected_type = 'a'
         expected_uid = 'b'
         e = DummyDescriptorElement(expected_type, expected_uid)
@@ -130,11 +134,11 @@ class TestDescriptorElementAbstract (unittest.TestCase):
             }
         )
 
-    def test_setstate(self):
+    def test_setstate(self) -> None:
         # Intentionally bad input types.
         # noinspection PyTypeChecker
-        e = DummyDescriptorElement(None, None)
-        self.assertIsNone(e._type_label)
+        e = DummyDescriptorElement("None", None)
+        self.assertEqual(e._type_label, "None")
         self.assertIsNone(e._uuid)
 
         expected_type = 'a'
