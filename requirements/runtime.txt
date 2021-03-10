@@ -4,8 +4,7 @@
 --index-url https://pypi.python.org/simple/
 
 smqtk_core == 0.15.0
-# TODO: Version pin this when there is a PYPI release.
-smqtk_dataprovider
+smqtk_dataprovider == 0.15.0
 
 numpy == 1.19.5
 Pillow == 8.1.0

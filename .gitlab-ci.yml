@@ -1,5 +1,4 @@
 stages:
-  - download
   - test
   - build
   - publish
@@ -43,41 +42,6 @@ variables:
 
 
 ###############################################################################
-# Jobs -- Acquire Deps
-#
-# This job is an intermediate workaround to package sharing before moving to
-# github / PYPI.
-#
-
-.download_job_defaults:
-  extends: .run_automatically
-  stage: download
-  tags:
-    - linux
-    - docker
-  before_script:
-    - mkdir local-deps
-  artifacts:
-    paths:
-      - local-deps/*
-    when: on_success
-
-download:dep-smqtk-dataprovider:
-  extends: .download_job_defaults
-  script:
-    # Aligned with smqtk-dataprovider's "publish:generic_latest_wheel" job
-    # Custom CI Variables - SMQTK_DP_PROJECT_ID
-    - |
-      if [[ "$SMQTK_DP_PROJECT_ID" = "" ]]
-      then
-        echo "ERROR: Env var has no value => SMQTK_DP_PROJECT_ID"
-        exit 1
-      fi
-    - 'wget --header="JOB-TOKEN: $CI_JOB_TOKEN" ${CI_API_V4_URL}/projects/${SMQTK_DP_PROJECT_ID}/packages/generic/latest_wheel/0.0.0/smqtk-dataprovider-latest.tgz'
-    - tar xvf smqtk-dataprovider-latest.tgz -C local-deps
-
-
-###############################################################################
 # Jobs -- Testing
 
 .test_job_defaults:
@@ -90,11 +54,8 @@ download:dep-smqtk-dataprovider:
   before_script:
     - python --version
     - pip install -U pip
-    - pip install local-deps/*
     - pip install -r requirements.txt
                   -e .
-  dependencies:
-    - download:dep-smqtk-dataprovider
 
 .pytest_cmd: &pytest_cmd
   - pytest --cov=smqtk_descriptors --cov-config=.pytest.coveragerc
