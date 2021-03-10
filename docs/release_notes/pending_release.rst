@@ -9,6 +9,9 @@ Misc.
 
 * Updated various type annotations for type-checking compliance.
 
+* Updated to use now publicly available ``smqtk-dataprovider`` package from
+  PYPI.
+
 
 Fixes
 -----
