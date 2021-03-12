@@ -1,10 +1,12 @@
 import abc
 from collections import deque
 import logging
-from typing import Deque, List, Optional, Tuple
+from typing import Deque, Generator, Iterable, List, Optional, Tuple
+
+import numpy as np
 
 from smqtk_core import Configurable, Pluggable
-from smqtk_dataprovider import ContentTypeValidator
+from smqtk_dataprovider import ContentTypeValidator, DataElement
 from smqtk_descriptors import DescriptorElement, DescriptorElementFactory
 from smqtk_descriptors.impls.descriptor_element.memory import DescriptorMemoryElement
 
@@ -19,7 +21,7 @@ class DescriptorGenerator (Configurable, Pluggable, ContentTypeValidator):
     """
 
     @abc.abstractmethod
-    def _generate_arrays(self, data_iter):
+    def _generate_arrays(self, data_iter: Iterable[DataElement]) -> Iterable[np.ndarray]:
         """
         Inner template method that defines the generation of descriptor vectors
         for a given iterable of data elements.
@@ -35,10 +37,9 @@ class DescriptorGenerator (Configurable, Pluggable, ContentTypeValidator):
 
         :return: Iterable of numpy arrays in parallel association with the
             input data elements.
-        :rtype: collections.abc.Iterable[numpy.ndarray]
         """
 
-    def generate_arrays(self, data_iter):
+    def generate_arrays(self, data_iter: Iterable[DataElement]) -> Iterable[np.ndarray]:
         """
         Generate descriptor vector elements for **all** input data elements.
 
@@ -57,7 +58,7 @@ class DescriptorGenerator (Configurable, Pluggable, ContentTypeValidator):
         includes any functionality after the final ``yield`` statement in any
         of the underlying iterators.
 
-        :param collections.abc.Iterable[smqtk.representation.DataElement] data_iter:
+        :param data_iter:
             Iterable of DataElement instances to be described.
 
         :raises RuntimeError: Descriptor extraction failure of some kind.
@@ -65,16 +66,18 @@ class DescriptorGenerator (Configurable, Pluggable, ContentTypeValidator):
             with respect to this descriptor generator implementation.
 
         :return: Iterator of result numpy.ndarray instances.
-        :rtype: collections.abc.Iterator[numpy.ndarray]
         """
         # Intermediate iterator for testing that content types are valid
         # TODO: Use an order-preserving call to parallel_map()?
         validated_data_iter = (self.raise_valid_element(d) for d in data_iter)
         return self._generate_arrays(validated_data_iter)
 
-    def generate_elements(self, data_iter,
-                          descr_factory=DFLT_DESCRIPTOR_FACTORY,
-                          overwrite=False):
+    def generate_elements(
+        self,
+        data_iter: Iterable[DataElement],
+        descr_factory: DescriptorElementFactory = DFLT_DESCRIPTOR_FACTORY,
+        overwrite: bool = False
+    ) -> Generator[DescriptorElement, None, None]:
         """
         Generate DescriptorElement instances for the input data elements,
         generating new descriptors for those elements that need them, or
@@ -109,12 +112,12 @@ class DescriptorGenerator (Configurable, Pluggable, ContentTypeValidator):
         input data elements and are set to their respective descriptor elements
         regardless of existing vector storage.
 
-        :param collections.abc.Iterable[smqtk.representation.DataElement] data_iter:
+        :param data_iter:
             Iterable of DataElement instances to be described.
-        :param smqtk.representation.DescriptorElementFactory descr_factory:
+        :param descr_factory:
             DescriptorElementFactory instance to drive the generation of
             element instances with some parametrization.
-        :param bool overwrite:
+        :param overwrite:
             By default, if a factory-produced DescriptorElement reports as
             containing a vector, we do not compute a descriptor again for the
             associated data element. If this is ``True``, however, we will
@@ -131,7 +134,6 @@ class DescriptorGenerator (Configurable, Pluggable, ContentTypeValidator):
         :return: Iterator of result DescriptorElement instances. UUIDs of
             generated DescriptorElement instances will reflect the UUID of the
             DataElement it was generated from.
-        :rtype: collections.abc.Iterator[smqtk.representation.DescriptorElement]
         """
         log_debug = LOG.debug
 
@@ -154,7 +156,7 @@ class DescriptorGenerator (Configurable, Pluggable, ContentTypeValidator):
 
         # TODO: Make generator threadsafe?
         # See: https://anandology.com/blog/using-iterators-and-generators/
-        def iter_tocompute_data():
+        def iter_tocompute_data() -> Generator[DataElement, None, None]:
             """ Yield data elements that need descriptor computation.
 
             Populate parallel lists as we traverse ``data_iter``, yielding data
@@ -165,7 +167,6 @@ class DescriptorGenerator (Configurable, Pluggable, ContentTypeValidator):
 
             :returns: Generator over data elements that need descriptor
                 generation.
-            :rtype: typing.Generator[smqtk.representation.DataElement]
             """
             # Running var for the index of final data element in input
             # iterator. This will be -1 or the value of the final index in the
@@ -247,7 +248,7 @@ class DescriptorGenerator (Configurable, Pluggable, ContentTypeValidator):
     # Single-element-based convenience methods
     #
 
-    def generate_one_array(self, data_elem):
+    def generate_one_array(self, data_elem: DataElement) -> np.ndarray:
         """
         Convenience wrapper around ``generate_arrays`` for the single-input
         case.
@@ -271,9 +272,12 @@ class DescriptorGenerator (Configurable, Pluggable, ContentTypeValidator):
             self.generate_arrays([data_elem])
         )[0]
 
-    def generate_one_element(self, data_elem,
-                             descr_factory=DFLT_DESCRIPTOR_FACTORY,
-                             overwrite=False):
+    def generate_one_element(
+        self,
+        data_elem: DataElement,
+        descr_factory: DescriptorElementFactory = DFLT_DESCRIPTOR_FACTORY,
+        overwrite: bool = False
+    ) -> DescriptorElement:
         """
         Convenience wrapper around ``generate_elements`` for the single-input
         case.
@@ -282,21 +286,21 @@ class DescriptorGenerator (Configurable, Pluggable, ContentTypeValidator):
         :meth:`DescriptorGenerator.generate_elements` method for more
         information
 
-        :param smqtk.representation.DataElement data_elem:
+        :param data_elem:
             DataElement instance to be described.
-        :param smqtk.representation.DescriptorElementFactory descr_factory:
+        :param descr_factory:
             DescriptorElementFactory instance to drive the generation of
             element instances with some parametrization.
-        :param bool overwrite:
+        :param overwrite:
             By default, if a factory-produced DescriptorElement reports as
             containing a vector, we do not compute a descriptor again for the
             associated data element. If this is ``True``, however, we will
             generate descriptors for all input data elements, overwriting the
             vectors previously stored in the factory-produces descriptor
             elements.
+
         :raises IndexError: Underlying vector-producing generator either under
             or over produced vectors.
-
         :raises RuntimeError: Descriptor extraction failure of some kind.
         :raises ValueError: Given data element content was not of a valid type
             with respect to this descriptor generator implementation.
@@ -304,7 +308,6 @@ class DescriptorGenerator (Configurable, Pluggable, ContentTypeValidator):
         :return: Result DescriptorElement instance. UUID of the generated
             DescriptorElement instance will reflect the UUID of the
             DataElement it was generated from.
-        :rtype: smqtk.representation.DescriptorElement
         """
         return list(
             self.generate_elements([data_elem], descr_factory=descr_factory,

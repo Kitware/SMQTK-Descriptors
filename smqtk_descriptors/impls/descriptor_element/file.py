@@ -1,4 +1,5 @@
 import os.path as osp
+from typing import Any, Dict, Hashable, Mapping, Optional
 
 import numpy
 
@@ -22,25 +23,25 @@ class DescriptorFileElement (DescriptorElement):
     """
 
     @classmethod
-    def is_usable(cls):
+    def is_usable(cls) -> bool:
         return True
 
-    def __init__(self, type_str, uuid, save_dir, subdir_split=None):
+    def __init__(
+        self,
+        type_str: str,
+        uuid: Hashable,
+        save_dir: str,
+        subdir_split: Optional[int] = None
+    ):
         """
         Initialize a file-base descriptor element.
 
         :param type_str: Type of descriptor. This is usually the name of the
             content descriptor that generated this vector.
-        :type type_str: str
-
         :param uuid: uuid for this descriptor
-        :type uuid: collections.abc.Hashable
-
         :param save_dir: Directory to save this element's contents. If this path
             is relative, we interpret as relative to the current working
             directory.
-        :type save_dir: str | unicode
-
         :param subdir_split: If a positive integer and greater than 1, this will
             cause us to store the vector file in a subdirectory under the
             ``save_dir`` based on our ``uuid``. The integer value specifies the
@@ -50,7 +51,6 @@ class DescriptorFileElement (DescriptorElement):
 
             Dashes are stripped from this string (as would happen if given an
             uuid.UUID instance as the uuid element).
-        :type subdir_split: None | int
 
         """
         super(DescriptorFileElement, self).__init__(type_str, uuid)
@@ -72,7 +72,7 @@ class DescriptorFileElement (DescriptorElement):
                                       "%s.%s.vector.npy" % (self.type(),
                                                             str(self.uuid())))
 
-    def __getstate__(self):
+    def __getstate__(self) -> Dict[str, Any]:
         state = super(DescriptorFileElement, self).__getstate__()
         state.update({
             '_save_dir': self._save_dir,
@@ -81,19 +81,19 @@ class DescriptorFileElement (DescriptorElement):
         })
         return state
 
-    def __setstate__(self, state):
+    def __setstate__(self, state: Mapping[str, Any]) -> None:
         super(DescriptorFileElement, self).__setstate__(state)
         self._save_dir = state['_save_dir']
         self._subdir_split = state['_subdir_split']
         self._vec_filepath = state['_vec_filepath']
 
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         return {
             "save_dir": self._save_dir,
             'subdir_split': self._subdir_split
         }
 
-    def has_vector(self):
+    def has_vector(self) -> bool:
         """
         :return: Whether or not this container current has a descriptor vector
             stored.
@@ -101,7 +101,7 @@ class DescriptorFileElement (DescriptorElement):
         """
         return osp.isfile(self._vec_filepath)
 
-    def vector(self):
+    def vector(self) -> Optional[numpy.ndarray]:
         """
         :return: Get the stored descriptor vector as a numpy array. This returns
             None of there is no vector stored in this container.
@@ -114,7 +114,7 @@ class DescriptorFileElement (DescriptorElement):
         else:
             return None
 
-    def set_vector(self, new_vec):
+    def set_vector(self, new_vec: numpy.ndarray) -> "DescriptorElement":
         """
         Set the contained vector.
 

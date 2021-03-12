@@ -10,7 +10,7 @@ from smqtk_descriptors.impls.descriptor_element.file import DescriptorFileElemen
 
 class TestDescriptorFileElement (unittest.TestCase):
 
-    def test_configuration(self):
+    def test_configuration(self) -> None:
         """ Test instance standard configuration """
         inst = DescriptorFileElement('test', 'abcd',
                                      save_dir='/some/path/somewhere',
@@ -20,7 +20,7 @@ class TestDescriptorFileElement (unittest.TestCase):
             assert i._save_dir == '/some/path/somewhere'
             assert i._subdir_split == 4
 
-    def test_vec_filepath_generation(self):
+    def test_vec_filepath_generation(self) -> None:
         d = DescriptorFileElement('test', 'abcd', '/base', 4)
         self.assertEqual(d._vec_filepath,
                          '/base/a/b/c/test.abcd.vector.npy')
@@ -41,7 +41,7 @@ class TestDescriptorFileElement (unittest.TestCase):
         self.assertEqual(d._vec_filepath,
                          '/base/test.abcd.vector.npy')
 
-    def test_serialization(self):
+    def test_serialization(self) -> None:
         # Test that an instance can be serialized and deserialized via pickle
         # successfully.
         ex_type = 'test'
@@ -62,7 +62,7 @@ class TestDescriptorFileElement (unittest.TestCase):
 
     @mock.patch('smqtk_descriptors.impls.descriptor_element.file.numpy.save')
     @mock.patch('smqtk_descriptors.impls.descriptor_element.file.safe_create_dir')
-    def test_vector_set(self, mock_scd, mock_save):
+    def test_vector_set(self, mock_scd: mock.MagicMock, mock_save: mock.MagicMock) -> None:
         d = DescriptorFileElement('test', 1234, '/base', 4)
         self.assertEqual(d._vec_filepath,
                          '/base/1/2/3/test.1234.vector.npy')
@@ -73,12 +73,13 @@ class TestDescriptorFileElement (unittest.TestCase):
         mock_save.assert_called_with('/base/1/2/3/test.1234.vector.npy', v)
 
     @mock.patch('smqtk_descriptors.impls.descriptor_element.file.numpy.load')
-    def test_vector_get(self, mock_load):
+    def test_vector_get(self, mock_load: mock.MagicMock) -> None:
         d = DescriptorFileElement('test', 1234, '/base', 4)
         self.assertFalse(d.has_vector())
         self.assertIs(d.vector(), None)
 
-        d.has_vector = mock.Mock(return_value=True)
+        # noinspection PyTypeHints
+        d.has_vector = mock.Mock(return_value=True)  # type: ignore
         self.assertTrue(d.has_vector())
         v = numpy.zeros(16)
         mock_load.return_value = v

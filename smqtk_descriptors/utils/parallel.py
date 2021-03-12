@@ -1,3 +1,4 @@
+from collections.abc import Iterator as abc_Iterator
 from itertools import zip_longest
 import heapq
 import logging
@@ -8,13 +9,17 @@ import queue
 import sys
 import threading
 import traceback
-from typing import Iterator, Optional, Type, Union
+from typing import Any, Callable, Iterable, List, Optional, Sequence, Type, Union
 
 
 LOG = logging.getLogger(__name__)
 
 
-def parallel_map(work_func, *sequences, **kwargs):
+def parallel_map(
+    work_func: Callable,
+    *sequences: Iterable,
+    **kwargs: Any
+) -> "ParallelResultsIterator":
     """
     Generalized local parallelization helper for executing embarrassingly
     parallel functions on an iterable of input data. This function then yields
@@ -91,19 +96,21 @@ def parallel_map(work_func, *sequences, **kwargs):
         When in multiprocessing mode, this cannot be a local function or a
         transport error will occur when trying to move the function to the
         worker process.
-    :type work_func: (object, ...)-> object
-
     :param sequences: Input data to apply to the given ``work_func`` function.
         If more than one sequence is given, the function is called with an
         argument list consisting of the corresponding item of each sequence.
-    :type sequences: collections.abc.Iterable
-
+        While we expect Iterable types to be provided here, they will only be
+        observed by `zip`/`zip_longest` at most once. See iteration rules for
+        `zip`/`zip_longest` for details.
     :param kwargs: Optionally available keyword arguments are as follows:
 
         - fill_void
             - Optional value that, if specified, activates sequence handling
-              like that of ``__builtin__.map`` except that the value provided
-              is used to
+              like that of ``itertools.zip_longest``, using the provided value
+              as a fill-in for shorter sequences until the longest sequence is
+              exhausted.
+            - type: Any
+            - default: No default
 
         - ordered
             - If results for input elements should be yielded in the same order
@@ -149,13 +156,14 @@ def parallel_map(work_func, *sequences, **kwargs):
 
         - daemon
             - Optional flag for if started threads/processes are flagged as
-              daemonic.
+              daemonic. This is should probably nearly always be True (the
+              default) otherwise related threads/processes can hang the main
+              process.
             - type: bool
             - default: True
 
     :return: A new parallel results iterator that starts work on the input
         iterable when iterated.
-    :rtype: ParallelResultsIterator
 
 
     Example
@@ -193,7 +201,7 @@ def parallel_map(work_func, *sequences, **kwargs):
 
     # Choose parallel types
     queue_t: Union[Type[multiprocessing.Queue], Type[queue.Queue]]
-    worker_t: Type[_Worker]
+    worker_t: Type[Union[_WorkerThread, _WorkerProcess]]
     if use_multiprocessing:
         queue_t = multiprocessing.Queue
         worker_t = _WorkerProcess
@@ -228,34 +236,58 @@ class _TerminalPacket (object):
     """
 
 
-def is_terminal(p):
+def is_terminal(p: Any) -> bool:
     """
     Check if a given packet is a terminal element.
 
     :param p: element to check
-    :type p: object
 
     :return: If ``p`` is a terminal element
-    :rtype: bool
-
     """
     return isinstance(p, _TerminalPacket)
 
 
-class ParallelResultsIterator (Iterator):
+class ParallelResultsIterator (abc_Iterator):
 
-    def __init__(self, name: Optional[str], ordered, is_multiprocessing, heart_beat,
-                 work_queue, results_queue,
-                 feeder_thread, workers, daemon):
+    def __init__(
+        self,
+        name: Optional[str],
+        ordered: bool,
+        is_multiprocessing: bool,
+        heart_beat: float,
+        work_queue: Union[queue.Queue, multiprocessing.Queue],
+        results_queue: Union[queue.Queue, multiprocessing.Queue],
+        feeder_thread: "_FeedQueueThread",
+        workers: Sequence[Union["_WorkerThread", "_WorkerProcess"]],
+        daemon: bool
+    ):
         """
-        :type ordered: bool
-        :type is_multiprocessing: bool
-        :type heart_beat: float
-        :type work_queue: Queue.Queue | multiprocessing.queues.Queue
-        :type results_queue: Queue.Queue | multiprocessing.queues.Queue
-        :type feeder_thread: _FeedQueueThread
-        :type workers: list[_WorkerThread|_WorkerProcess]
-        :type daemon: bool
+        :param name: String name to attribute to this iterator. May be None.
+        :param ordered: If this results iterator should yield results in a
+            congruent order to the input parameter sequences. If this is
+            `false` then this results iterator will yield results as soon as
+            they are available regardless of the input parameter sequence
+            order.
+        :param is_multiprocessing: If workers are processes vs. threads. When
+            this is true, extra steps are taken to appropriately shutdown
+            processes.
+        :param heart_beat: How long in seconds we wait when polling for data on
+            the results queue before momentarily giving up to allow a cycle of
+            the loop. This is important in allowing an external signal to
+            indicate we should stop iterating (prevents hanging on getting the
+            next result value).
+        :param work_queue: Queue into which work is placed by the feeder
+            thread. This object is responsible for cleaning up this queue, if
+            applicable, upon iteration termination.
+        :param results_queue: Queue from which work results are pulled. This
+            object is responsible for cleaning up this queue, if applicable,
+            upon iteration termination.
+        :param feeder_thread: Thread for feeding the input queue for this
+            iterator to manage starting and stopping appropriately.
+        :param workers: Sequence of worker threads/processes for this iterator
+            to manage starting and stopping appropriately.
+        :param daemon: If the managed threads/processes should be started as
+            daemons.
         """
         self.name = name
         self._l_prefix: str = f"[PRI{(name and f'::{name}') or ''}]"
@@ -277,13 +309,13 @@ class ParallelResultsIterator (Iterator):
         self.has_cleaned_up = False
 
         self.found_terminals = 0
-        self.result_heap = []
+        self.result_heap: List = []
         self.next_index = 0
 
         self.stop_event = threading.Event()
         self.stop_event_lock = threading.Lock()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         sfx = ''
         if self.name:
             sfx = '[' + self.name + ']'
@@ -294,7 +326,7 @@ class ParallelResultsIterator (Iterator):
             "address": hex(id(self)),
         }
 
-    def __next__(self):
+    def __next__(self) -> Any:
         l_prefix = self._l_prefix
         try:
             if not self.has_started_workers:
@@ -349,9 +381,9 @@ class ParallelResultsIterator (Iterator):
 
     next = __next__
 
-    def start_workers(self):
+    def start_workers(self) -> None:
         """
-        Start worker threads/processes
+        Start worker threads/processes.
         """
         LOG.log(1, f"{self._l_prefix} Starting worker processes")
         for w in self.workers:
@@ -364,7 +396,7 @@ class ParallelResultsIterator (Iterator):
 
         self.has_started_workers = True
 
-    def clean_up(self):
+    def clean_up(self) -> None:
         """
         Clean up any live resources if we haven't done so already.
         """
@@ -383,12 +415,13 @@ class ParallelResultsIterator (Iterator):
             if self.is_multiprocessing:
                 LOG.log(1, f"{l_prefix} Closing/Joining process queues")
                 for q in (self.work_queue, self.results_queue):
+                    assert isinstance(q, multiprocessing.queues.Queue)
                     q.close()
                     q.join_thread()
 
             self.has_cleaned_up = True
 
-    def stop(self):
+    def stop(self) -> None:
         """
         Stop this iterator.
 
@@ -398,19 +431,18 @@ class ParallelResultsIterator (Iterator):
             self.stop_event.set()
             self.clean_up()
 
-    def stopped(self):
+    def stopped(self) -> bool:
         """
         :return: if this iterator has been stopped
-        :rtype: bool
         """
         return self.stop_event.is_set()
 
-    def results_q_get(self):
+    def results_q_get(self) -> Any:
         """
         Attempts to get something from the results queue.
 
         :raises StopIteration: when we've been told to stop.
-
+        :returns: Single result from the results queue.
         """
         while not self.stopped():
             try:
@@ -419,7 +451,7 @@ class ParallelResultsIterator (Iterator):
                 pass
         raise StopIteration()
 
-    def assert_queues_empty(self):
+    def assert_queues_empty(self) -> None:
         # All work should be exhausted at this point
         if self.is_multiprocessing and sys.platform == 'darwin':
             # multiprocessing.Queue.qsize doesn't work on OSX
@@ -451,8 +483,35 @@ class _FeedQueueThread (threading.Thread):
 
     """
 
-    def __init__(self, name, arg_sequences, q, num_terminal_packets,
-                 heart_beat, do_fill, fill_value):
+    def __init__(
+        self,
+        name: Optional[str],
+        arg_sequences: Sequence[Iterable],
+        q: Union[queue.Queue, multiprocessing.Queue],
+        num_terminal_packets: int,
+        heart_beat: float,
+        do_fill: bool,
+        fill_value: Any
+    ):
+        """
+        :param name: Optional name for this feed queue thread.
+        :param arg_sequences: Sequence of iterators that will feed input work
+            arguments. While we expect Iterable types to be provided here, they
+            will only be observed by `zip`/`zip_longest` at most once. See
+            iteration rules for `zip`/`zip_longest` for details.
+        :param q: Queue to put work argument sets into.
+        :param num_terminal_packets: Number of terminal packets to put into the
+            work queue upon completion of submitting real work. This should be
+            the same number of workers feeding off of `q`.
+        :param heart_beat: How long in seconds we wait for an individual put
+            attempt into `q` before momentarily giving up to allow a cycle of
+            the loop. This is important in allowing an external signal to
+            indicate we should stop feeding efforts (prevents hanging on
+            pushing values into `q`).
+        :param do_fill: If we should fill in a certain value for the shorter
+            input sequences along the same rules for `itertools.zip_longest`.
+        :param fill_value: The value to fill with if `do_fill` is True.
+        """
         super().__init__(name=name)
         self._l_prefix: str = f"[FQT{(name and f'::{name}') or ''}]"
 
@@ -465,15 +524,13 @@ class _FeedQueueThread (threading.Thread):
 
         self._stop_event = threading.Event()
 
-        # self.daemon = True
-
-    def stop(self):
+    def stop(self) -> None:
         self._stop_event.set()
 
-    def stopped(self):
+    def stopped(self) -> bool:
         return self._stop_event.is_set()
 
-    def run(self):
+    def run(self) -> None:
         l_prefix = self._l_prefix
         LOG.log(1, f"{l_prefix} Starting")
 
@@ -517,13 +574,12 @@ class _FeedQueueThread (threading.Thread):
 
             LOG.log(1, f"{l_prefix} Closing")
 
-    def q_put(self, val):
+    def q_put(self, val: Any) -> None:
         """
         Try to put the given value into the output queue until it is inserted
         (if it was previously full), or the stop signal was given.
 
         :param val: value to put into the output queue.
-
         """
         put = False
         while not put and not self.stopped():
@@ -536,14 +592,31 @@ class _FeedQueueThread (threading.Thread):
 
 class _Worker:
 
-    def __init__(self, name, i, work_function, in_q, out_q, heart_beat):
+    def __init__(
+        self,
+        name: Optional[str],
+        i: int,
+        work_function: Callable,
+        in_q: Union[queue.Queue, multiprocessing.Queue],
+        out_q: Union[queue.Queue, multiprocessing.Queue],
+        heart_beat: float
+    ):
         """
-        :type name: str
-        :type i: int
-        :type work_function: (*args) -> object
-        :type in_q: multiprocessing.queues.Queue
-        :type out_q: multiprocessing.queues.Queue
-        :type heart_beat: float
+        Individual worker agent.
+
+        :param name: Optional name for this worker.
+        :param i: The integer index, >= 0, of this worker among active workers
+            for this parallel iteration task.
+        :param work_function: Callable function to invoke which generates some
+            result value.
+        :param in_q: Queue to draw work function input parameters from.
+        :param out_q: Queue to output work results, or triggered exceptions,
+            to.
+        :param heart_beat: How long in seconds we wait when polling for data on
+            the `in_q`, as well as for result put attempts into `out_q`, before
+            momentarily giving up to allow a cycle of the loop. This is
+            important in allowing an external signal to indicate we should stop
+            working (prevents hanging on queue interactions).
         """
         self._l_prefix: str = f"[Worker{(name and f'::{name}') or ''}::#{int(i)}]"
 
@@ -556,13 +629,13 @@ class _Worker:
 
         self._stop_event = self._make_event()
 
-    def _make_event(self):
+    def _make_event(self) -> Union[threading.Event, multiprocessing.synchronize.Event]:
         raise NotImplementedError()
 
-    def stop(self):
+    def stop(self) -> None:
         self._stop_event.set()
 
-    def stopped(self):
+    def stopped(self) -> bool:
         return self._stop_event.is_set()
 
     def run(self) -> None:
@@ -596,13 +669,12 @@ class _Worker:
         finally:
             LOG.log(1, f"{l_prefix} Closing")
 
-    def q_get(self):
+    def q_get(self) -> Any:
         """
         Try to get a value from the queue while keeping an eye out for an exit
         request.
 
         :return: next value on the input queue
-
         """
         while not self.stopped():
             try:
@@ -610,7 +682,7 @@ class _Worker:
             except queue.Empty:
                 pass
 
-    def q_put(self, val):
+    def q_put(self, val: Any) -> None:
         """
         Try to put the given value into the output queue while keeping an eye
         out for an exit request.
@@ -629,15 +701,24 @@ class _Worker:
 
 class _WorkerProcess (_Worker, multiprocessing.Process):
 
-    def __init__(self, name, i, work_function, in_q, out_q, heart_beat):
+    def __init__(
+        self,
+        name: Optional[str],
+        i: int,
+        work_function: Callable,
+        in_q: Union[queue.Queue, multiprocessing.Queue],
+        out_q: Union[queue.Queue, multiprocessing.Queue],
+        heart_beat: float
+    ):
+        """
+        Constructor override to include multiprocessing.Process constructor
+        super construction. See `_Worker` constructor doc-string for parameter
+        documentation.
+        """
         multiprocessing.Process.__init__(self)
         _Worker.__init__(self, name, i, work_function, in_q, out_q, heart_beat)
-        # if name:
-        #     self.name = name + "::%d" % i
 
-        # self.daemon = True
-
-    def _make_event(self):
+    def _make_event(self) -> multiprocessing.synchronize.Event:
         return multiprocessing.Event()
 
     # The inheritance order should be sufficient to ensure the `_Worker.run`
@@ -648,15 +729,24 @@ class _WorkerProcess (_Worker, multiprocessing.Process):
 
 class _WorkerThread (_Worker, threading.Thread):
 
-    def __init__(self, name, i, work_function, in_q, out_q, heart_beat):
+    def __init__(
+        self,
+        name: Optional[str],
+        i: int,
+        work_function: Callable,
+        in_q: Union[queue.Queue, multiprocessing.Queue],
+        out_q: Union[queue.Queue, multiprocessing.Queue],
+        heart_beat: float
+    ):
+        """
+        Constructor override to include threading.Thread constructor super
+        construction. See `_Worker` constructor doc-string for parameter
+        documentation.
+        """
         threading.Thread.__init__(self)
         _Worker.__init__(self, name, i, work_function, in_q, out_q, heart_beat)
-        # if name:
-        #     self.name = name + "::%d" % i
 
-        # self.daemon = True
-
-    def _make_event(self):
+    def _make_event(self) -> threading.Event:
         return threading.Event()
 
     # The inheritance order should be sufficient to ensure the `_Worker.run`

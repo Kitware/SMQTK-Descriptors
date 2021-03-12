@@ -1,11 +1,9 @@
 from io import BytesIO
 import itertools
 import logging
-from typing import Dict, Optional
+from typing import Any, Dict, Hashable, Iterable, Mapping, Optional, Set, Tuple, Type, TypeVar
 
 import numpy
-import PIL.Image
-import PIL.ImageFile
 
 from smqtk_core.configuration import (
     from_config_dict,
@@ -17,22 +15,28 @@ from smqtk_dataprovider import DataElement
 from smqtk_descriptors import DescriptorGenerator
 from smqtk_descriptors.utils import parallel_map
 
+
+LOG = logging.getLogger(__name__)
+
+
+try:
+    import PIL.Image  # type: ignore
+    import PIL.ImageFile  # type: ignore
+except ImportError as ex:
+    LOG.warning(f"Failed to import PIL module: {ex}")
+    PIL = None
+
 try:
     import caffe  # type: ignore
 except ImportError as ex:
-    logging.getLogger(__name__).warning("Failed to import caffe module: %s",
-                                        str(ex))
+    LOG.warning(f"Failed to import caffe module: {ex}")
     caffe = None
 
-
-__author__ = 'paul.tunison@kitware.com, jacob.becker@kitware.com'
 
 __all__ = [
     "CaffeDescriptorGenerator",
 ]
-
-
-LOG = logging.getLogger(__name__)
+T = TypeVar("T", bound="CaffeDescriptorGenerator")
 
 
 class CaffeDescriptorGenerator (DescriptorGenerator):
@@ -42,14 +46,14 @@ class CaffeDescriptorGenerator (DescriptorGenerator):
     """
 
     @classmethod
-    def is_usable(cls):
-        valid = caffe is not None
+    def is_usable(cls) -> bool:
+        valid = caffe is not None and PIL is not None
         if not valid:
             LOG.debug("Caffe python module cannot be imported")
         return valid
 
     @classmethod
-    def get_default_config(cls):
+    def get_default_config(cls) -> Dict[str, Any]:
         default = super(CaffeDescriptorGenerator, cls).get_default_config()
 
         data_elem_impl_set = DataElement.get_impls()
@@ -62,7 +66,11 @@ class CaffeDescriptorGenerator (DescriptorGenerator):
         return default
 
     @classmethod
-    def from_config(cls, config_dict, merge_default=True):
+    def from_config(
+        cls: Type[T],
+        config_dict: Dict,
+        merge_default: bool = True
+    ) -> T:
         if merge_default:
             config_dict = merge_dict(cls.get_default_config(),
                                      config_dict)
@@ -90,67 +98,55 @@ class CaffeDescriptorGenerator (DescriptorGenerator):
 
         return super(CaffeDescriptorGenerator, cls).from_config(config_dict, merge_default=False)
 
-    def __init__(self, network_prototxt, network_model,
-                 image_mean=None, return_layer='fc7',
-                 batch_size=1, use_gpu=False, gpu_device_id=0,
-                 network_is_bgr=True, data_layer='data',
-                 load_truncated_images=False, pixel_rescale=None,
-                 input_scale=None, threads=None):
+    def __init__(
+        self,
+        network_prototxt: DataElement,
+        network_model: DataElement,
+        image_mean: Optional[DataElement] = None,
+        return_layer: str = 'fc7',
+        batch_size: int = 1,
+        use_gpu: bool = False,
+        gpu_device_id: int = 0,
+        network_is_bgr: bool = True,
+        data_layer: str = 'data',
+        load_truncated_images: bool = False,
+        pixel_rescale: Optional[Tuple[float, float]] = None,
+        input_scale: Optional[float] = None,
+        threads: Optional[int] = None
+    ):
         """
         Create a Caffe CNN descriptor generator
 
-        :param smqtk.representation.DataElement network_prototxt: Data element
-            containing the text file defining the network layout.
-
-        :param smqtk.representation.DataElement network_model: Data element
-            containing the trained ``.caffemodel`` file to use.
-
-        :param smqtk.representation.DataElement image_mean: Optional data
-            element containing the image mean ``.binaryproto`` or ``.npy``
-            file.
-
+        :param network_prototxt: Data element containing the text file defining
+            the network layout.
+        :param network_model: Data element containing the trained
+            ``.caffemodel`` file to use.
+        :param image_mean: Optional data element containing the image mean
+            ``.binaryproto`` or ``.npy`` file.
         :param return_layer: The label of the layer we take data from to compose
             output descriptor vector.
-        :type return_layer: str
-
         :param batch_size: The maximum number of images to process in one feed
             forward of the network. This is especially important for GPUs since
             they can only process a batch that will fit in the GPU memory space.
-        :type batch_size: int
-
         :param use_gpu: If Caffe should try to use the GPU
-        :type use_gpu: bool
-
         :param gpu_device_id: Integer ID of the GPU device to use. Only used if
             ``use_gpu`` is True.
-        :type gpu_device_id: int
-
         :param network_is_bgr: If the network is expecting BGR format pixels.
             For example, the BVLC default caffenet does (thus the default is
             True).
-        :type network_is_bgr: bool
-
         :param data_layer: String label of the network's data layer.
             We assume its 'data' by default.
-        :type data_layer: str
-
         :param load_truncated_images: If we should be lenient and force loading
             of truncated image bytes. This is False by default.
-        :type load_truncated_images: bool
-
         :param pixel_rescale: Re-scale image pixel values before being
             transformed by caffe (before mean subtraction, etc)
             into the given tuple ``(min, max)`` range. By default, images are
             loaded in the ``[0, 255]`` range. Refer to the image mean being used
             for desired input pixel scale.
-        :type pixel_rescale: None | (float, float)
-
         :param input_scale: Optional floating-point scalar value to scale values
             of caffe network input data AFTER mean subtraction. This value is
             directly multiplied against the pixel values.
-        :type input_scale: None | float
-
-        :param int|None threads:
+        :param threads:
             Optional specific number of threads to use for data loading and
             pre-processing. If this is None or 0, we introspect the current
             system thread capacity and use that.
@@ -188,37 +184,37 @@ class CaffeDescriptorGenerator (DescriptorGenerator):
             % self. gpu_device_id
 
         # Network setup variables
-        self.network = None
+        self.network: Optional[caffe.Net] = None
         self.net_data_shape = ()
-        self.transformer = None
+        self.transformer: Optional[caffe.io.Transformer] = None
 
         self._setup_network()
 
-    def __getstate__(self):
+    def __getstate__(self) -> Dict[str, Any]:
         return self.get_config()
 
-    def __setstate__(self, state):
+    def __setstate__(self, state: Mapping[str, Any]) -> None:
         # This ``__dict__.update`` works because configuration parameters
         # exactly match up with instance attributes currently.
         self.__dict__.update(state)
         # Translate nested Configurable instance configurations into actual
         # object instances.
-        # noinspection PyTypeChecker
         self.network_prototxt = from_config_dict(
-            self.network_prototxt, DataElement.get_impls()
+            state["network_prototxt"], DataElement.get_impls()
         )
         # noinspection PyTypeChecker
         self.network_model = from_config_dict(
-            self.network_model, DataElement.get_impls()
+            state["network_model"], DataElement.get_impls()
         )
-        if self.image_mean is not None:
+        state_image_mean = state["image_mean"]
+        if state_image_mean is not None:
             # noinspection PyTypeChecker
             self.image_mean = from_config_dict(
-                self.image_mean, DataElement.get_impls()
+                state_image_mean, DataElement.get_impls()
             )
         self._setup_network()
 
-    def _set_caffe_mode(self):
+    def _set_caffe_mode(self) -> None:
         """
         Set the appropriate Caffe mode on the current thread/process.
         """
@@ -230,11 +226,11 @@ class CaffeDescriptorGenerator (DescriptorGenerator):
             LOG.debug("using CPU")
             caffe.set_mode_cpu()
 
-    def _setup_network(self):
+    def _setup_network(self) -> None:
         """
         Initialize Caffe and the network
 
-        ::raises AssertionError: Optionally provided image mean protobuf
+        :raises AssertionError: Optionally provided image mean protobuf
             consisted of more than one image, or its shape was neither 1 or 3
             channels.
         """
@@ -301,7 +297,7 @@ class CaffeDescriptorGenerator (DescriptorGenerator):
             LOG.debug("Initializing data transformer -- input scale")
             self.transformer.set_input_scale(self.data_layer, self.input_scale)
 
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         """
         Return a JSON-compliant dictionary that could be passed to this class's
         ``from_config`` method to produce an instance with identical
@@ -312,8 +308,6 @@ class CaffeDescriptorGenerator (DescriptorGenerator):
         to the constructor via dictionary expansion.
 
         :return: JSON type compliant configuration dictionary.
-        :rtype: dict
-
         """
         image_mean_config: Optional[Dict]
         if self.image_mean is not None:
@@ -336,11 +330,10 @@ class CaffeDescriptorGenerator (DescriptorGenerator):
             "threads": self.threads,
         }
 
-    def valid_content_types(self):
+    def valid_content_types(self) -> Set[str]:
         """
         :return: A set valid MIME type content types that this descriptor can
             handle.
-        :rtype: set[str]
         """
         return {
             'image/tiff',
@@ -349,7 +342,7 @@ class CaffeDescriptorGenerator (DescriptorGenerator):
             'image/bmp',
         }
 
-    def _generate_arrays(self, data_iter):
+    def _generate_arrays(self, data_iter: Iterable[DataElement]) -> Iterable[numpy.ndarray]:
         """
         Inner template method that defines the generation of descriptor vectors
         for a given iterable of data elements.
@@ -426,7 +419,9 @@ class CaffeDescriptorGenerator (DescriptorGenerator):
             batch_i += 1
 
 
-def _process_load_img_array(input_tuple):
+def _process_load_img_array(
+    input_tuple: Tuple[DataElement, "caffe.io.Transformer", str, bool, Optional[Tuple[float, float]]]
+) -> Tuple[Hashable, numpy.ndarray]:
     """
     Helper function for multiprocessing image data loading
 
@@ -444,8 +439,6 @@ def _process_load_img_array(input_tuple):
         map function. See above for content details.
 
     :return: Input DataElement UUID and Pre-processed numpy array.
-    :rtype: (collections.abc.Hashable, numpy.ndarray)
-
     """
     # data_element: DataElement providing bytes
     # transformer: Caffe Transformer instance for pre-processing.

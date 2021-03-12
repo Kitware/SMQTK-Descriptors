@@ -14,7 +14,7 @@ class TestDescriptorSolrElement (unittest.TestCase):
     TEST_URL = 'http://localhost:8983/solr'
 
     @mock.patch("solr.Solr")
-    def test_configuration(self, _mock_Solr):
+    def test_configuration(self, _mock_solr: mock.MagicMock) -> None:
         inst = SolrDescriptorElement(
             'test', 'a',
             solr_conn_addr=self.TEST_URL,
@@ -22,8 +22,7 @@ class TestDescriptorSolrElement (unittest.TestCase):
             timestamp_field='timestamp_f', timeout=101,
             persistent_connection=True, commit_on_set=False,
         )
-        for i in configuration_test_helper(inst, {'type_str', 'uuid'},
-                                           ('test', 'abcd')):  # type: SolrDescriptorElement
+        for i in configuration_test_helper(inst, {'type_str', 'uuid'}, ('test', 'abcd')):
             assert i.solr_conn_addr == self.TEST_URL
             assert i.type_field == 'type_s'
             assert i.uuid_field == 'uuid_s'

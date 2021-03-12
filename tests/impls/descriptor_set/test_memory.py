@@ -12,7 +12,7 @@ from smqtk_descriptors.impls.descriptor_set.memory import MemoryDescriptorSet
 RAND_UUID = 0
 
 
-def random_descriptor():
+def random_descriptor() -> DescriptorMemoryElement:
     global RAND_UUID
     d = DescriptorMemoryElement('random', RAND_UUID)
     d.set_vector(numpy.random.rand(64))
@@ -22,16 +22,16 @@ def random_descriptor():
 
 class TestMemoryDescriptorSet (unittest.TestCase):
 
-    def test_is_usable(self):
+    def test_is_usable(self) -> None:
         # Always usable because no dependencies.
         self.assertEqual(MemoryDescriptorSet.is_usable(), True)
 
-    def test_default_config(self):
+    def test_default_config(self) -> None:
         # Default should be valid for constructing a new instance.
         c = MemoryDescriptorSet.get_default_config()
         self.assertEqual(MemoryDescriptorSet.from_config(c).get_config(), c)
 
-    def test_from_config_null_cache_elem(self):
+    def test_from_config_null_cache_elem(self) -> None:
         inst = MemoryDescriptorSet.from_config({'cache_element': None})
         self.assertIsNone(inst.cache_element)
         self.assertEqual(inst._table, {})
@@ -44,7 +44,7 @@ class TestMemoryDescriptorSet (unittest.TestCase):
         self.assertIsNone(inst.cache_element)
         self.assertEqual(inst._table, {})
 
-    def test_from_config_null_cache_elem_type(self):
+    def test_from_config_null_cache_elem_type(self) -> None:
         # An empty cache should not trigger loading on construction.
         expected_empty_cache = DataMemoryElement()
         dme_key = 'smqtk_dataprovider.impls.data_element.memory.DataMemoryElement'
@@ -57,7 +57,7 @@ class TestMemoryDescriptorSet (unittest.TestCase):
         self.assertEqual(inst.cache_element, expected_empty_cache)
         self.assertEqual(inst._table, {})
 
-    def test_from_config(self):
+    def test_from_config(self) -> None:
         # Configured cache with some picked bytes
         # Then convert to "string" (decode -> unicode) for python version used.
         expected_table = dict(a=1, b=2, c=3)
@@ -74,18 +74,18 @@ class TestMemoryDescriptorSet (unittest.TestCase):
         self.assertEqual(inst.cache_element, expected_cache)
         self.assertEqual(inst._table, expected_table)
 
-    def test_init_no_cache(self):
+    def test_init_no_cache(self) -> None:
         inst = MemoryDescriptorSet()
         self.assertIsNone(inst.cache_element, None)
         self.assertEqual(inst._table, {})
 
-    def test_init_empty_cache(self):
+    def test_init_empty_cache(self) -> None:
         cache_elem = DataMemoryElement()
         inst = MemoryDescriptorSet(cache_element=cache_elem)
         self.assertEqual(inst.cache_element, cache_elem)
         self.assertEqual(inst._table, {})
 
-    def test_init_with_cache(self):
+    def test_init_with_cache(self) -> None:
         d_list = (random_descriptor(), random_descriptor(),
                   random_descriptor(), random_descriptor())
         expected_table = dict((r.uuid(), r) for r in d_list)
@@ -97,7 +97,7 @@ class TestMemoryDescriptorSet (unittest.TestCase):
         self.assertEqual(inst._table, expected_table)
         self.assertEqual(set(inst._table.values()), set(d_list))
 
-    def test_get_config(self):
+    def test_get_config(self) -> None:
         self.assertEqual(
             MemoryDescriptorSet().get_config(),
             MemoryDescriptorSet.get_default_config()
@@ -132,23 +132,23 @@ class TestMemoryDescriptorSet (unittest.TestCase):
             })
         )
 
-    def test_cache_table_no_cache(self):
+    def test_cache_table_no_cache(self) -> None:
         inst = MemoryDescriptorSet()
         inst._table = {}
         inst.cache_table()  # should basically do nothing
         self.assertIsNone(inst.cache_element)
 
-    def test_cache_table_empty_table(self):
+    def test_cache_table_empty_table(self) -> None:
         inst = MemoryDescriptorSet(DataMemoryElement(), -1)
         inst._table = {}
         expected_table_pickle_bytes = pickle.dumps(inst._table, -1)
 
         inst.cache_table()
-        self.assertIsNotNone(inst.cache_element)
+        assert inst.cache_element is not None
         self.assertEqual(inst.cache_element.get_bytes(),
                          expected_table_pickle_bytes)
 
-    def test_add_descriptor(self):
+    def test_add_descriptor(self) -> None:
         index = MemoryDescriptorSet()
 
         d1 = random_descriptor()
@@ -159,7 +159,7 @@ class TestMemoryDescriptorSet (unittest.TestCase):
         index.add_descriptor(d2)
         self.assertEqual(index._table[d2.uuid()], d2)
 
-    def test_add_many(self):
+    def test_add_many(self) -> None:
         descrs = [
             random_descriptor(),
             random_descriptor(),
@@ -176,14 +176,13 @@ class TestMemoryDescriptorSet (unittest.TestCase):
 
         # Get the set of descriptors in the internal table and compare it with
         # the set of generated random descriptors.
-        r_set = set()
-        [r_set.add(d) for d in index._table.values()]
+        r_set = set(index._table.values())
         self.assertEqual(
             set([e for e in descrs]),
             r_set
         )
 
-    def test_count(self):
+    def test_count(self) -> None:
         index = MemoryDescriptorSet()
         self.assertEqual(index.count(), 0)
 
@@ -201,7 +200,7 @@ class TestMemoryDescriptorSet (unittest.TestCase):
         index.add_descriptor(d5)
         self.assertEqual(index.count(), 5)
 
-    def test_get_descriptors(self):
+    def test_get_descriptors(self) -> None:
         descrs = [
             random_descriptor(),   # [0]
             random_descriptor(),   # [1]
@@ -216,6 +215,17 @@ class TestMemoryDescriptorSet (unittest.TestCase):
         r = index.get_descriptor(descrs[1].uuid())
         self.assertEqual(r, descrs[1])
 
+    def test_get_many_descriptor(self) -> None:
+        descrs = [
+            random_descriptor(),  # [0]
+            random_descriptor(),  # [1]
+            random_descriptor(),  # [2]
+            random_descriptor(),  # [3]
+            random_descriptor(),  # [4]
+        ]
+        index = MemoryDescriptorSet()
+        index.add_many_descriptors(descrs)
+
         # multiple descriptor reference
         r = list(index.get_many_descriptors([descrs[0].uuid(),
                                              descrs[3].uuid()]))
@@ -223,7 +233,7 @@ class TestMemoryDescriptorSet (unittest.TestCase):
         self.assertEqual(set(r),
                          {descrs[0], descrs[3]})
 
-    def test_clear(self):
+    def test_clear(self) -> None:
         i = MemoryDescriptorSet()
         n = 10
 
@@ -234,7 +244,7 @@ class TestMemoryDescriptorSet (unittest.TestCase):
         self.assertEqual(len(i), 0)
         self.assertEqual(i._table, {})
 
-    def test_has(self):
+    def test_has(self) -> None:
         i = MemoryDescriptorSet()
         descrs = [random_descriptor() for _ in range(10)]
         i.add_many_descriptors(descrs)
@@ -242,12 +252,13 @@ class TestMemoryDescriptorSet (unittest.TestCase):
         self.assertTrue(i.has_descriptor(descrs[4].uuid()))
         self.assertFalse(i.has_descriptor('not_an_int'))
 
-    def test_added_descriptor_table_caching(self):
+    def test_added_descriptor_table_caching(self) -> None:
         cache_elem = DataMemoryElement(readonly=False)
         descrs = [random_descriptor() for _ in range(3)]
         expected_table = dict((r.uuid(), r) for r in descrs)
 
         i = MemoryDescriptorSet(cache_elem)
+        assert i.cache_element is not None
         self.assertTrue(cache_elem.is_empty())
 
         # Should add descriptors to table, caching to writable element.
@@ -270,7 +281,7 @@ class TestMemoryDescriptorSet (unittest.TestCase):
         self.assertEqual(pickle.loads(i.cache_element.get_bytes()),
                          expected_table)
 
-    def test_remove(self):
+    def test_remove(self) -> None:
         i = MemoryDescriptorSet()
         descrs = [random_descriptor() for _ in range(100)]
         i.add_many_descriptors(descrs)
@@ -290,7 +301,7 @@ class TestMemoryDescriptorSet (unittest.TestCase):
         self.assertEqual(set(i.iterdescriptors()),
                          set(descrs[1:]).difference(rm_d))
 
-    def test_natural_iter(self):
+    def test_natural_iter(self) -> None:
         """Test that iterating over the descriptor set appropriately
         yields the descriptor element contents."""
         i = MemoryDescriptorSet()
@@ -299,21 +310,21 @@ class TestMemoryDescriptorSet (unittest.TestCase):
         self.assertEqual(set(i),
                          set(descrs))
 
-    def test_iterdescrs(self):
+    def test_iterdescrs(self) -> None:
         i = MemoryDescriptorSet()
         descrs = [random_descriptor() for _ in range(100)]
         i.add_many_descriptors(descrs)
         self.assertEqual(set(i.iterdescriptors()),
                          set(descrs))
 
-    def test_iterkeys(self):
+    def test_iterkeys(self) -> None:
         i = MemoryDescriptorSet()
         descrs = [random_descriptor() for _ in range(100)]
         i.add_many_descriptors(descrs)
         self.assertEqual(set(i.iterkeys()),
                          set(d.uuid() for d in descrs))
 
-    def test_iteritems(self):
+    def test_iteritems(self) -> None:
         i = MemoryDescriptorSet()
         descrs = [random_descriptor() for _ in range(100)]
         i.add_many_descriptors(descrs)
