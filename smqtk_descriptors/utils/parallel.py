@@ -340,7 +340,7 @@ class ParallelResultsIterator (abc_Iterator):
                 if is_terminal(packet):
                     LOG.log(1, f'{l_prefix} Found terminal')
                     self.found_terminals += 1
-                elif isinstance(packet[0], Exception):
+                elif isinstance(packet[0], BaseException):
                     ex, formatted_exc = packet
                     LOG.warning(f'{l_prefix} Received exception: '
                                 f'{ex}\n{formatted_exc}')
@@ -556,9 +556,7 @@ class _FeedQueueThread (threading.Thread):
                     LOG.log(1, f"{l_prefix} Told to stop prematurely")
                     break
         # Transport back any exceptions raised
-        # - Using BaseException to also catch things like KeyboardInterrupt
-        #   and other exceptions that do not descend from Exception.
-        except BaseException as ex:
+        except (Exception, KeyboardInterrupt) as ex:
             LOG.warning(f"{l_prefix} Caught exception {str(ex)}")
             self.q_put((ex, traceback.format_exc()))
             self.stop()
@@ -667,12 +665,16 @@ class _Worker(metaclass=abc.ABCMeta):
                     self.q_put((i, result))
                     packet = self.q_get()
         # Transport back any exceptions raised
-        # - Using BaseException to also catch things like KeyboardInterrupt
-        #   and other exceptions that do not descend from Exception.
-        except BaseException as ex:
+        except (Exception, KeyboardInterrupt) as ex:
             LOG.warning(f"{l_prefix} Caught exception {type(ex)}")
             self.q_put((ex, traceback.format_exc()))
             self.stop()
+        except BaseException as ex:
+            # Some exotic error occurred (can only be systemExit at this
+            # point?). Register stopping and re-raise.
+            LOG.log(1, f"Exotic error {type(ex)}: {ex}")
+            self.stop()
+            raise
         finally:
             LOG.log(1, f"{l_prefix} Closing")
 

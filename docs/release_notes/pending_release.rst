@@ -53,3 +53,6 @@ Utilities
   * Fix :class:`smqtk_descriptors.util.parallel._Worker` definition of
     :func:`._Worker._make_event` to a class method instead of an instance
     method.
+
+  * Fix overly broad ``BaseException`` catches that didn't re-raise to more
+    specifically handle ``Exception`` and ``KeyboardInterrupt`` classes.
