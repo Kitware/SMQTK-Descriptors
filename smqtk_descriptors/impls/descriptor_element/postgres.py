@@ -24,7 +24,7 @@ PSQL_TABLE_CREATE_RLOCK = multiprocessing.RLock()
 
 
 # noinspection SqlNoDataSourceInspection
-class PostgresDescriptorElement (DescriptorElement):
+class PostgresDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
     """
     Descriptor element whose vector is stored in a Postgres database.
 

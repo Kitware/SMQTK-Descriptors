@@ -6,7 +6,7 @@ import numpy
 from smqtk_descriptors import DescriptorElement
 
 
-class DescriptorMemoryElement (DescriptorElement):
+class DescriptorMemoryElement (DescriptorElement):  # lgtm [py/missing-equals]
     """
     In-memory representation of descriptor elements. Stored vectors are
     effectively immutable.

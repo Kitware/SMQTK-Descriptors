@@ -1,3 +1,4 @@
+import abc
 from collections.abc import Iterator as abc_Iterator
 from itertools import zip_longest
 import heapq
@@ -339,7 +340,7 @@ class ParallelResultsIterator (abc_Iterator):
                 if is_terminal(packet):
                     LOG.log(1, f'{l_prefix} Found terminal')
                     self.found_terminals += 1
-                elif isinstance(packet[0], Exception):
+                elif isinstance(packet[0], BaseException):
                     ex, formatted_exc = packet
                     LOG.warning(f'{l_prefix} Received exception: '
                                 f'{ex}\n{formatted_exc}')
@@ -555,9 +556,7 @@ class _FeedQueueThread (threading.Thread):
                     LOG.log(1, f"{l_prefix} Told to stop prematurely")
                     break
         # Transport back any exceptions raised
-        # - Using BaseException to also catch things like KeyboardInterrupt
-        #   and other exceptions that do not descend from Exception.
-        except BaseException as ex:
+        except (Exception, KeyboardInterrupt) as ex:
             LOG.warning(f"{l_prefix} Caught exception {str(ex)}")
             self.q_put((ex, traceback.format_exc()))
             self.stop()
@@ -590,7 +589,7 @@ class _FeedQueueThread (threading.Thread):
                 pass
 
 
-class _Worker:
+class _Worker(metaclass=abc.ABCMeta):
 
     def __init__(
         self,
@@ -629,7 +628,13 @@ class _Worker:
 
         self._stop_event = self._make_event()
 
-    def _make_event(self) -> Union[threading.Event, multiprocessing.synchronize.Event]:
+    @classmethod
+    @abc.abstractmethod
+    def _make_event(cls) -> Union[threading.Event, multiprocessing.synchronize.Event]:
+        """
+        Generate an event type instance appropriate for the type of worker
+        sub-classed.
+        """
         raise NotImplementedError()
 
     def stop(self) -> None:
@@ -660,12 +665,16 @@ class _Worker:
                     self.q_put((i, result))
                     packet = self.q_get()
         # Transport back any exceptions raised
-        # - Using BaseException to also catch things like KeyboardInterrupt
-        #   and other exceptions that do not descend from Exception.
-        except BaseException as ex:
+        except (Exception, KeyboardInterrupt) as ex:
             LOG.warning(f"{l_prefix} Caught exception {type(ex)}")
             self.q_put((ex, traceback.format_exc()))
             self.stop()
+        except BaseException as ex:
+            # Some exotic error occurred (can only be systemExit at this
+            # point?). Register stopping and re-raise.
+            LOG.log(1, f"Exotic error {type(ex)}: {ex}")
+            self.stop()
+            raise
         finally:
             LOG.log(1, f"{l_prefix} Closing")
 
@@ -718,7 +727,8 @@ class _WorkerProcess (_Worker, multiprocessing.Process):
         multiprocessing.Process.__init__(self)
         _Worker.__init__(self, name, i, work_function, in_q, out_q, heart_beat)
 
-    def _make_event(self) -> multiprocessing.synchronize.Event:
+    @classmethod
+    def _make_event(cls) -> multiprocessing.synchronize.Event:
         return multiprocessing.Event()
 
     # The inheritance order should be sufficient to ensure the `_Worker.run`
@@ -746,7 +756,8 @@ class _WorkerThread (_Worker, threading.Thread):
         threading.Thread.__init__(self)
         _Worker.__init__(self, name, i, work_function, in_q, out_q, heart_beat)
 
-    def _make_event(self) -> threading.Event:
+    @classmethod
+    def _make_event(cls) -> threading.Event:
         return threading.Event()
 
     # The inheritance order should be sufficient to ensure the `_Worker.run`
