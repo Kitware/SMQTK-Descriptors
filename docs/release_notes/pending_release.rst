@@ -45,3 +45,11 @@ Misc.
   only explicitly include the ``smqtk_descriptors`` package and submodules.
 
 * Fixed issues with type checking mypy tests exposed with more strict settings.
+
+Utilities
+
+* Parallel
+
+  * Fix :class:`smqtk_descriptors.util.parallel._Worker` definition of
+    :func:`._Worker._make_event` to a class method instead of an instance
+    method.

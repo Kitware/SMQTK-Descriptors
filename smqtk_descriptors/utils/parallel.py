@@ -1,3 +1,4 @@
+import abc
 from collections.abc import Iterator as abc_Iterator
 from itertools import zip_longest
 import heapq
@@ -590,7 +591,7 @@ class _FeedQueueThread (threading.Thread):
                 pass
 
 
-class _Worker:
+class _Worker(metaclass=abc.ABCMeta):
 
     def __init__(
         self,
@@ -629,7 +630,13 @@ class _Worker:
 
         self._stop_event = self._make_event()
 
-    def _make_event(self) -> Union[threading.Event, multiprocessing.synchronize.Event]:
+    @classmethod
+    @abc.abstractmethod
+    def _make_event(cls) -> Union[threading.Event, multiprocessing.synchronize.Event]:
+        """
+        Generate an event type instance appropriate for the type of worker
+        sub-classed.
+        """
         raise NotImplementedError()
 
     def stop(self) -> None:
@@ -718,7 +725,8 @@ class _WorkerProcess (_Worker, multiprocessing.Process):
         multiprocessing.Process.__init__(self)
         _Worker.__init__(self, name, i, work_function, in_q, out_q, heart_beat)
 
-    def _make_event(self) -> multiprocessing.synchronize.Event:
+    @classmethod
+    def _make_event(cls) -> multiprocessing.synchronize.Event:
         return multiprocessing.Event()
 
     # The inheritance order should be sufficient to ensure the `_Worker.run`
@@ -746,7 +754,8 @@ class _WorkerThread (_Worker, threading.Thread):
         threading.Thread.__init__(self)
         _Worker.__init__(self, name, i, work_function, in_q, out_q, heart_beat)
 
-    def _make_event(self) -> threading.Event:
+    @classmethod
+    def _make_event(cls) -> threading.Event:
         return threading.Event()
 
     # The inheritance order should be sufficient to ensure the `_Worker.run`
