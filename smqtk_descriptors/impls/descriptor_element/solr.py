@@ -13,7 +13,7 @@ except ImportError:
     solr = None
 
 
-class SolrDescriptorElement (DescriptorElement):
+class SolrDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
     """
     Descriptor element that uses a Solr instance as the backend storage medium.
 

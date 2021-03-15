@@ -8,7 +8,7 @@ from smqtk_dataprovider.utils.string import partition_string
 from smqtk_descriptors import DescriptorElement
 
 
-class DescriptorFileElement (DescriptorElement):
+class DescriptorFileElement (DescriptorElement):  # lgtm [py/missing-equals]
     """
     File-based storage of descriptor element.
 

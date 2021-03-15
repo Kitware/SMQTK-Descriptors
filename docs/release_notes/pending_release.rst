@@ -20,6 +20,10 @@ Misc.
 Fixes
 -----
 
+CI
+
+* Fix other LGTM warnings.
+
 Descriptor Element
 
 * Removed old ``elements_to_matrix`` utility function, replacing it's use with
