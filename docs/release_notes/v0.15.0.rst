@@ -1,5 +1,10 @@
-SMQTK Pending Release Notes
+SMQTK v0.15.0 Release Notes
 ===========================
+
+This is the initial release of ``smqtk-descriptor``, spinning off from
+v0.14.0 of the monolithic `SMQTK`_ library.
+
+.. _smqtk: https://github.com/kitware/smqtk
 
 
 Updates / New Features

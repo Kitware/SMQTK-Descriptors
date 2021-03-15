@@ -1,4 +1,4 @@
-__version__ = "0.14.0"
+__version__ = "0.15.0"
 
 from .descriptor_element_factory import DescriptorElementFactory  # noqa: F401
 from .interfaces.descriptor_element import DescriptorElement  # noqa: F401
