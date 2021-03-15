@@ -16,6 +16,11 @@ Misc.
 Fixes
 -----
 
+Descriptor Element
+
+* Removed old ``elements_to_matrix`` utility function, replacing it's use with
+  the appropriate invocation of :func:`smqtk.utils.parallel.parallel_map`.
+
 Descriptor Set
 
 * Memory
