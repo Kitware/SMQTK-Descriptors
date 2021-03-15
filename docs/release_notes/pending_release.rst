@@ -5,6 +5,10 @@ SMQTK Pending Release Notes
 Updates / New Features
 ----------------------
 
+CI
+
+* Added actions workflow for CI on GitHub.
+
 Misc.
 
 * Updated various type annotations for type-checking compliance.

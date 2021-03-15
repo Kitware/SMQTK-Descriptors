@@ -1,0 +1,113 @@
+# This is a basic workflow to help you get started with Actions
+
+name: CI Unittests
+
+# Controls when the action will run.
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+# NOTE: Github actions does not support anchors apparently. Forgive duplication of job
+#       steps.
+jobs:
+  unittests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7, 3.8, 3.9]
+      # We want all python versions tested even if one of them happens to fail
+      fail-fast: false
+
+    container: python:${{ matrix.python-version }}
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Versions of things used here
+        run: |
+          command -v python
+          python --version
+          pip --version
+      - name: Pip install requirements and package
+        run: |
+          pip install -U pip
+          pip install -r requirements.txt -e .
+      - name: Run Unittests
+        run: pytest --cov=smqtk_descriptors --cov-config=.pytest.coveragerc
+
+  lint:
+    runs-on: ubuntu-latest
+    container: python:3.9
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Versions of things used here
+        run: |
+          command -v python
+          python --version
+          pip --version
+      - name: Pip install requirements and package
+        run: |
+          pip install -U pip
+          pip install -r requirements.txt -e .
+      - name: Lint with Flake8
+        run: flake8
+
+  typecheck:
+    runs-on: ubuntu-latest
+    container: python:3.9
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Versions of things used here
+        run: |
+          command -v python
+          python --version
+          pip --version
+      - name: Pip install requirements and package
+        run: |
+          pip install -U pip
+          pip install -r requirements.txt -e .
+      - name: Typecheck with MyPy
+        run: mypy
+
+  build_wheel:
+    runs-on: ubuntu-latest
+    container: python:3.9
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Versions of things used here
+        run: |
+          command -v python
+          python --version
+          pip --version
+      - name: Build wheel
+        run: python setup.py bdist_wheel
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: package-wheel
+          path: dist/smqtk_descriptors-*-py3-none-any.whl
