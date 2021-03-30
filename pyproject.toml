@@ -35,7 +35,6 @@ classifiers = [
 python = "^3.6"
 setuptools = ">=53"
 numpy = "^1.19.5"
-Pillow = "^8.1.2"
 smqtk-core = "^0.16.0"
 smqtk-dataprovider = "^0.15.0"
 
