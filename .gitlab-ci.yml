@@ -1,7 +1,5 @@
 stages:
   - test
-  - build
-  - publish
 
 # Global default parameters set for all jobs unless overridden by job-specific
 # configuration.
@@ -52,13 +50,32 @@ variables:
     - docker
     - test
   before_script:
+    - export PATH=${HOME}/.local/bin:${PATH}
+    - pip install --user -U poetry
+    - command -v python
     - python --version
-    - pip install -U pip
-    - pip install -r requirements.txt
-                  -e .
+    - command -v pip
+    - pip --version
+    - command -v poetry
+    - poetry -V
+    - poetry install
 
-.pytest_cmd: &pytest_cmd
-  - pytest --cov=smqtk_descriptors --cov-config=.pytest.coveragerc
+test:docs_build:
+  extends: .test_job_defaults
+  script:
+    - cd docs
+    - poetry run make html
+    - stat _build/html/index.html
+
+test:lint:
+  extends: .test_job_defaults
+  script:
+    - poetry run flake8
+
+test:typecheck:
+  extends: .test_job_defaults
+  script:
+    - poetry run mypy
 
 test:unittests:
   extends: .test_job_defaults
@@ -70,78 +87,4 @@ test:unittests:
                 "python:3.9-buster"]
   image: $IMAGE
   script:
-    - *pytest_cmd
-
-test:lint:
-  extends: .test_job_defaults
-  script:
-    - flake8
-
-test:typecheck:
-  extends: .test_job_defaults
-  script:
-    - mypy
-
-test:docs_build:
-  extends: .test_job_defaults
-  script:
-    - cd docs
-    - make html
-    - stat _build/html/index.html
-
-
-###############################################################################
-# Jobs -- Build
-
-.build_job_defaults:
-  stage: build
-  tags:
-    - linux
-    - docker
-    - build
-
-build:build_wheel:
-  extends:
-    - .build_job_defaults
-    - .run_automatically
-  script:
-    - python setup.py bdist_wheel
-  artifacts:
-    paths:
-      - dist/*.whl
-    when: on_success
-
-
-###############################################################################
-# Jobs -- Publishing
-
-.publish_job_defaults:
-  stage: publish
-  tags:
-    - linux
-    - docker
-    - build
-
-publish:generic_latest_wheel:
-  # This job is an intermediate workaround to package sharing before moving to
-  # github / PYPI.
-  extends:
-    - .publish_job_defaults
-    - .run_on_masters
-  stage: publish
-  dependencies:
-    - build:build_wheel
-  script:
-    - ARCH_NAME="smqtk-descriptors-latest.tgz"
-    - DIST_FILES=($(ls dist))
-    - |
-      if [[ "${#DIST_FILES[@]}" -ne 1 ]]
-      then
-        echo "ERROR: More than one dist file detected:"
-        ls -lhF dist
-        exit 1
-      fi
-    - tar czf "$ARCH_NAME" -C dist "${DIST_FILES[0]}"
-    - >
-      curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file "$ARCH_NAME"
-      "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/latest_wheel/0.0.0/$ARCH_NAME"
+    - poetry run pytest --cov=smqtk_descriptors --cov-config=.pytest.coveragerc
