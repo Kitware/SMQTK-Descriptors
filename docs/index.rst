@@ -3,20 +3,20 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Social Media Query ToolKit
-==========================
+Social Media Query ToolKit -- Descriptors
+=========================================
 
-`GitHub <https://github.com/Kitware/SMQTK>`_
+`GitHub <https://github.com/Kitware/SMQTK-Descriptors>`_
 
-Python toolkit for pluggable algorithms and data structures for multimedia-based machine learning.
+Data structures and interfaces around generating and storing descriptor (feature) vectors of various input types.
 
 .. toctree::
    :maxdepth: 2
 
    installation
-   quickstarts
-   architecture
-   examples/overview
+   descriptor_storage
+   descriptor_generation
+   examples
    releasing
 
 Indices and tables
