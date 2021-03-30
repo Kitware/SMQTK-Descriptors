@@ -20,7 +20,7 @@ import smqtk_descriptors
 
 # -- Project information -----------------------------------------------------
 
-project = 'SMQTK'
+project = 'SMQTK-Descriptors'
 copyright = '2015, Kitware, Inc.'
 author = 'Kitware, Inc.'
 

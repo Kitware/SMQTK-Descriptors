@@ -43,6 +43,44 @@ class CaffeDescriptorGenerator (DescriptorGenerator):
     """
     Compute images against a Caffe model, extracting a layer as the content
     descriptor.
+
+    :param network_prototxt: Data element containing the text file defining
+        the network layout.
+    :param network_model: Data element containing the trained
+        ``.caffemodel`` file to use.
+    :param image_mean: Optional data element containing the image mean
+        ``.binaryproto`` or ``.npy`` file.
+    :param return_layer: The label of the layer we take data from to compose
+        output descriptor vector.
+    :param batch_size: The maximum number of images to process in one feed
+        forward of the network. This is especially important for GPUs since
+        they can only process a batch that will fit in the GPU memory space.
+    :param use_gpu: If Caffe should try to use the GPU
+    :param gpu_device_id: Integer ID of the GPU device to use. Only used if
+        ``use_gpu`` is True.
+    :param network_is_bgr: If the network is expecting BGR format pixels.
+        For example, the BVLC default caffenet does (thus the default is
+        True).
+    :param data_layer: String label of the network's data layer.
+        We assume its 'data' by default.
+    :param load_truncated_images: If we should be lenient and force loading
+        of truncated image bytes. This is False by default.
+    :param pixel_rescale: Re-scale image pixel values before being
+        transformed by caffe (before mean subtraction, etc)
+        into the given tuple ``(min, max)`` range. By default, images are
+        loaded in the ``[0, 255]`` range. Refer to the image mean being used
+        for desired input pixel scale.
+    :param input_scale: Optional floating-point scalar value to scale values
+        of caffe network input data AFTER mean subtraction. This value is
+        directly multiplied against the pixel values.
+    :param threads:
+        Optional specific number of threads to use for data loading and
+        pre-processing. If this is None or 0, we introspect the current
+        system thread capacity and use that.
+
+    :raises AssertionError: Optionally provided image mean protobuf
+        consisted of more than one image, or its shape was neither 1 nor 3
+        channels.
     """
 
     @classmethod
@@ -116,44 +154,6 @@ class CaffeDescriptorGenerator (DescriptorGenerator):
     ):
         """
         Create a Caffe CNN descriptor generator
-
-        :param network_prototxt: Data element containing the text file defining
-            the network layout.
-        :param network_model: Data element containing the trained
-            ``.caffemodel`` file to use.
-        :param image_mean: Optional data element containing the image mean
-            ``.binaryproto`` or ``.npy`` file.
-        :param return_layer: The label of the layer we take data from to compose
-            output descriptor vector.
-        :param batch_size: The maximum number of images to process in one feed
-            forward of the network. This is especially important for GPUs since
-            they can only process a batch that will fit in the GPU memory space.
-        :param use_gpu: If Caffe should try to use the GPU
-        :param gpu_device_id: Integer ID of the GPU device to use. Only used if
-            ``use_gpu`` is True.
-        :param network_is_bgr: If the network is expecting BGR format pixels.
-            For example, the BVLC default caffenet does (thus the default is
-            True).
-        :param data_layer: String label of the network's data layer.
-            We assume its 'data' by default.
-        :param load_truncated_images: If we should be lenient and force loading
-            of truncated image bytes. This is False by default.
-        :param pixel_rescale: Re-scale image pixel values before being
-            transformed by caffe (before mean subtraction, etc)
-            into the given tuple ``(min, max)`` range. By default, images are
-            loaded in the ``[0, 255]`` range. Refer to the image mean being used
-            for desired input pixel scale.
-        :param input_scale: Optional floating-point scalar value to scale values
-            of caffe network input data AFTER mean subtraction. This value is
-            directly multiplied against the pixel values.
-        :param threads:
-            Optional specific number of threads to use for data loading and
-            pre-processing. If this is None or 0, we introspect the current
-            system thread capacity and use that.
-
-        ::raises AssertionError: Optionally provided image mean protobuf
-            consisted of more than one image, or its shape was neither 1 or 3
-            channels.
         """
         super(CaffeDescriptorGenerator, self).__init__()
 
