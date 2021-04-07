@@ -36,6 +36,7 @@ def parallel_map(
 
     This is intended to be able to replace ``multiprocessing.pool.Pool`` and
     ``multiprocessing.pool.ThreadPool`` uses with the added benefit of:
+
         - No set-up or clean-up needed
         - No performance loss compared to ``multiprocessing.pool`` classes
           for non-trivial work functions (like IO operations).
@@ -237,7 +238,7 @@ class _TerminalPacket (object):
     """
 
 
-def is_terminal(p: Any) -> bool:
+def _is_terminal(p: Any) -> bool:
     """
     Check if a given packet is a terminal element.
 
@@ -249,6 +250,39 @@ def is_terminal(p: Any) -> bool:
 
 
 class ParallelResultsIterator (abc_Iterator):
+    """
+    Iterator return from a parallel mapping job, managing workers and output
+    results queue consumption.
+
+    A parallel work mapping jobs may be canceled through this object.
+
+    :param name: String name to attribute to this iterator. May be None.
+    :param ordered: If this results iterator should yield results in a
+        congruent order to the input parameter sequences. If this is
+        `false` then this results iterator will yield results as soon as
+        they are available regardless of the input parameter sequence
+        order.
+    :param is_multiprocessing: If workers are processes vs. threads. When
+        this is true, extra steps are taken to appropriately shutdown
+        processes.
+    :param heart_beat: How long in seconds we wait when polling for data on
+        the results queue before momentarily giving up to allow a cycle of
+        the loop. This is important in allowing an external signal to
+        indicate we should stop iterating (prevents hanging on getting the
+        next result value).
+    :param work_queue: Queue into which work is placed by the feeder
+        thread. This object is responsible for cleaning up this queue, if
+        applicable, upon iteration termination.
+    :param results_queue: Queue from which work results are pulled. This
+        object is responsible for cleaning up this queue, if applicable,
+        upon iteration termination.
+    :param feeder_thread: Thread for feeding the input queue for this
+        iterator to manage starting and stopping appropriately.
+    :param workers: Sequence of worker threads/processes for this iterator
+        to manage starting and stopping appropriately.
+    :param daemon: If the managed threads/processes should be started as
+        daemons.
+    """
 
     def __init__(
         self,
@@ -262,34 +296,6 @@ class ParallelResultsIterator (abc_Iterator):
         workers: Sequence[Union["_WorkerThread", "_WorkerProcess"]],
         daemon: bool
     ):
-        """
-        :param name: String name to attribute to this iterator. May be None.
-        :param ordered: If this results iterator should yield results in a
-            congruent order to the input parameter sequences. If this is
-            `false` then this results iterator will yield results as soon as
-            they are available regardless of the input parameter sequence
-            order.
-        :param is_multiprocessing: If workers are processes vs. threads. When
-            this is true, extra steps are taken to appropriately shutdown
-            processes.
-        :param heart_beat: How long in seconds we wait when polling for data on
-            the results queue before momentarily giving up to allow a cycle of
-            the loop. This is important in allowing an external signal to
-            indicate we should stop iterating (prevents hanging on getting the
-            next result value).
-        :param work_queue: Queue into which work is placed by the feeder
-            thread. This object is responsible for cleaning up this queue, if
-            applicable, upon iteration termination.
-        :param results_queue: Queue from which work results are pulled. This
-            object is responsible for cleaning up this queue, if applicable,
-            upon iteration termination.
-        :param feeder_thread: Thread for feeding the input queue for this
-            iterator to manage starting and stopping appropriately.
-        :param workers: Sequence of worker threads/processes for this iterator
-            to manage starting and stopping appropriately.
-        :param daemon: If the managed threads/processes should be started as
-            daemons.
-        """
         self.name = name
         self._l_prefix: str = f"[PRI{(name and f'::{name}') or ''}]"
 
@@ -337,7 +343,7 @@ class ParallelResultsIterator (abc_Iterator):
                    not self.stopped()):
                 packet = self.results_q_get()
 
-                if is_terminal(packet):
+                if _is_terminal(packet):
                     LOG.log(1, f'{l_prefix} Found terminal')
                     self.found_terminals += 1
                 elif isinstance(packet[0], BaseException):
@@ -651,7 +657,7 @@ class _Worker(metaclass=abc.ABCMeta):
         try:
             packet = self.q_get()
             while not self.stopped():
-                if is_terminal(packet):
+                if _is_terminal(packet):
                     LOG.log(1, f"{l_prefix} sending terminal")
                     self.q_put(packet)
                     self.stop()
