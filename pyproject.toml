@@ -35,7 +35,7 @@ classifiers = [
 python = "^3.6"
 setuptools = ">=53"
 numpy = "^1.19.5"
-smqtk-core = "^0.16.0"
+smqtk-core = "^0.17.0"
 smqtk-dataprovider = "^0.15.0"
 
 [tool.poetry.extras]
