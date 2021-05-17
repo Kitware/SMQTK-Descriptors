@@ -33,10 +33,9 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.6"
-setuptools = ">=53"
 numpy = "^1.19.5"
-smqtk-core = "^0.17.0"
-smqtk-dataprovider = "^0.15.0"
+smqtk-core = ">=0.18.0"
+smqtk-dataprovider = ">=0.16.0"
 
 [tool.poetry.extras]
 
@@ -56,6 +55,9 @@ livereload = "^2.6.3"
 coverage = "^5.5"
 pytest = "^6.2.2"
 pytest-cov = "^2.11.1"
+# Development
+ipython = "^7.16.1"
+jedi = "^0.17.2"
 
 [tool.poetry.plugins."smqtk_plugins"]
 # DescriptorElement
