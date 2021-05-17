@@ -1,0 +1,42 @@
+v0.16.0
+=======
+This minor release updates the build system used to `Poetry`_, updates the
+``smqtk-core`` package dependency to a version >= 0.18.0 (the current release)
+and makes use of its importlib metadata pass-through.
+
+
+Updates / New Features
+----------------------
+
+Dependencies
+
+* Remove dependency on ``setuptool``'s ``pkg_resources`` module.
+  Taking the stance of bullet number 5 in from `Python's Packaging User-guide`_
+  with regards to getting this package's version.
+  The "needs to be installed" requirement from before is maintained.
+
+* Added ``ipython`` (and appropriately supporting version of ``jedi``) as
+  development dependencies.
+  Minimum versioning is set to support python 3.6 (current versions follow
+  `NEP 29`_ and thus require python 3.7+).
+
+Misc.
+
+* Now standardize to using `Poetry`_ for environment/build/publish management.
+
+  * Collapsed pytest configuration into the :file:`pyproject.toml` file.
+
+Testing
+
+* Added terminal-output coverage report in the standard pytest config in the
+  ``pyproject.toml`` file.
+
+Fixes
+-----
+
+* Update CI configurations to use `Poetry`_.
+
+
+.. _Poetry: https://python-poetry.org/
+.. _Python's Packaging User-guide: https://packaging.python.org/guides/single-sourcing-package-version/
+.. _NEP 29: https://packaging.python.org/guides/single-sourcing-package-version/
