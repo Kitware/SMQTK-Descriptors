@@ -319,7 +319,7 @@ class PostgresDescriptorSet (DescriptorSet):
         )
 
         # Transform input into
-        def iter_elements() -> Generator[Dict[str, Any], None, None]:
+        def elements() -> Generator[Dict[str, Any], None, None]:
             for d in descriptors:
                 yield {
                     'uuid_val': str(d.uuid()),
@@ -332,7 +332,7 @@ class PostgresDescriptorSet (DescriptorSet):
             cur.executemany(q, batch)
 
         LOG.debug("Adding many descriptors")
-        list(self.psql_helper.batch_execute(iter_elements(), exec_hook,
+        list(self.psql_helper.batch_execute(elements(), exec_hook,
                                             self.multiquery_batch_size))
 
     def get_descriptor(self, uuid: Hashable) -> DescriptorElement:
@@ -386,7 +386,7 @@ class PostgresDescriptorSet (DescriptorSet):
         # order to raise a KeyError.
         uuid_order = []
 
-        def iterelems() -> Generator[str, None, None]:
+        def elems() -> Generator[str, None, None]:
             for uid in uuids:
                 uuid_order.append(uid)
                 yield str(uid)
@@ -404,7 +404,7 @@ class PostgresDescriptorSet (DescriptorSet):
         #   - We also check that the number of rows we got back is the same
         #     as elements yielded, else there were trailing UUIDs that did not
         #     match anything in the database.
-        g = self.psql_helper.batch_execute(iterelems(), exec_hook,
+        g = self.psql_helper.batch_execute(elems(), exec_hook,
                                            self.multiquery_batch_size,
                                            yield_result_rows=True)
         i = 0
@@ -476,17 +476,17 @@ class PostgresDescriptorSet (DescriptorSet):
 
         list(self.psql_helper.single_execute(execute))
 
-    def iterkeys(self) -> Generator[Hashable, None, None]:
+    def keys(self) -> Generator[Hashable, None, None]:
         """
         Return an iterator over set descriptor keys, which are their UUIDs.
         """
         # Getting UUID through the element because the UUID might not be a
         # string type, and the true type is encoded with the DescriptorElement
         # instance.
-        for d in self.iterdescriptors():
+        for d in self.descriptors():
             yield d.uuid()
 
-    def iterdescriptors(self) -> Generator[DescriptorElement, None, None]:
+    def descriptors(self) -> Generator[DescriptorElement, None, None]:
         """
         Return an iterator over set descriptor element instances.
         """
@@ -504,11 +504,11 @@ class PostgresDescriptorSet (DescriptorSet):
             d = pickle.loads(bytes(r[0]))
             yield d
 
-    def iteritems(self) -> Generator[Tuple[Hashable, DescriptorElement], None, None]:
+    def items(self) -> Generator[Tuple[Hashable, DescriptorElement], None, None]:
         """
         Return an iterator over set descriptor key and instance pairs.
         :rtype: collections.abc.Iterator[(collections.abc.Hashable,
                                           smqtk.representation.DescriptorElement)]
         """
-        for d in self.iterdescriptors():
+        for d in self.descriptors():
             yield d.uuid(), d

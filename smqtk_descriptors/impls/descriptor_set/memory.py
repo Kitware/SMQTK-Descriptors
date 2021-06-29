@@ -280,11 +280,11 @@ class MemoryDescriptorSet (DescriptorSet):
             self._inner_remove_descriptor(uid, no_cache=True)
         self.cache_table()
 
-    def iterkeys(self) -> Iterator[Hashable]:
+    def keys(self) -> Iterator[Hashable]:
         return iter(self._table.keys())
 
-    def iterdescriptors(self) -> Iterator[DescriptorElement]:
+    def descriptors(self) -> Iterator[DescriptorElement]:
         return iter(self._table.values())
 
-    def iteritems(self) -> Iterator[Tuple[Hashable, DescriptorElement]]:
+    def items(self) -> Iterator[Tuple[Hashable, DescriptorElement]]:
         return iter(self._table.items())
