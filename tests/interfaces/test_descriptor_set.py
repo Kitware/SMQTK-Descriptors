@@ -16,13 +16,13 @@ class DummyDescriptorSet (DescriptorSet):
     def get_many_descriptors(self, uuids: Iterable[Hashable]) -> Iterator[DescriptorElement]:
         pass
 
-    def iterkeys(self) -> Iterator[Hashable]:
+    def keys(self) -> Iterator[Hashable]:
         pass
 
-    def iteritems(self) -> Iterator[Tuple[Hashable, DescriptorElement]]:
+    def items(self) -> Iterator[Tuple[Hashable, DescriptorElement]]:
         pass
 
-    def iterdescriptors(self) -> Iterator[DescriptorElement]:
+    def descriptors(self) -> Iterator[DescriptorElement]:
         pass
 
     def remove_many_descriptors(self, uuids: Iterable[Hashable]) -> None:
@@ -80,13 +80,13 @@ class TestDescriptorSetAbstract (unittest.TestCase):
                 yield _i
 
         # noinspection PyTypeHints
-        di.iterdescriptors = mock.Mock(side_effect=dumb_iterator)  # type: ignore
+        di.descriptors = mock.Mock(side_effect=dumb_iterator)  # type: ignore
 
         for i, v in enumerate(iter(di)):
             self.assertEqual(i, v)
         self.assertEqual(list(di), [0, 1, 2])
         self.assertEqual(tuple(di), (0, 1, 2))
-        self.assertEqual(di.iterdescriptors.call_count, 3)
+        self.assertEqual(di.descriptors.call_count, 3)
 
     @mock.patch("smqtk_descriptors.interfaces.descriptor_set.DescriptorElement"
                 ".get_many_vectors", wraps=DescriptorElement.get_many_vectors)

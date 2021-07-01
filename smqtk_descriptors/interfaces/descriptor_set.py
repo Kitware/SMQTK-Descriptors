@@ -1,6 +1,6 @@
 import abc
 from typing import Hashable, Iterable, Iterator, List, Optional, Tuple
-
+from warnings import warn
 import numpy as np
 
 from smqtk_core import Configurable, Pluggable
@@ -26,7 +26,7 @@ class DescriptorSet (Configurable, Pluggable):
         return self.get_descriptor(uuid)
 
     def __iter__(self) -> Iterator[DescriptorElement]:
-        return self.iterdescriptors()
+        return self.descriptors()
 
     def __len__(self) -> int:
         return self.count()
@@ -157,29 +157,38 @@ class DescriptorSet (Configurable, Pluggable):
             DescriptorElement in this index.
 
         """
-
     @abc.abstractmethod
-    def iterkeys(self) -> Iterator[Hashable]:
+    def keys(self) -> Iterator[Hashable]:
         """
         Return an iterator over indexed descriptor keys, which are their UUIDs.
         """
 
     @abc.abstractmethod
-    def iterdescriptors(self) -> Iterator[DescriptorElement]:
+    def descriptors(self) -> Iterator[DescriptorElement]:
         """
         Return an iterator over indexed descriptor element instances.
         """
 
     @abc.abstractmethod
-    def iteritems(self) -> Iterator[Tuple[Hashable, DescriptorElement]]:
+    def items(self) -> Iterator[Tuple[Hashable, DescriptorElement]]:
         """
         Return an iterator over indexed descriptor key and instance pairs.
         """
 
-    def keys(self) -> Iterator[Hashable]:
-        """ alias for iterkeys """
-        return self.iterkeys()
+    def iterkeys(self) -> Iterator[Hashable]:
+        """ Deprecated alias for keys """
+        warn("descriptor_set.iterkeys() deprecated."
+             " Please use keys() instead.", category=DeprecationWarning)
+        return self.keys()
 
-    def items(self) -> Iterator[Tuple[Hashable, DescriptorElement]]:
-        """ alias for iteritems """
-        return self.iteritems()
+    def iterdescriptors(self) -> Iterator[DescriptorElement]:
+        """ Deprecated alias for descriptors """
+        warn("descriptor_set.iterdescriptors() deprecated. Please use"
+             " descriptors() instead", category=DeprecationWarning)
+        return self.descriptors()
+
+    def iteritems(self) -> Iterator[Tuple[Hashable, DescriptorElement]]:
+        """ Deprecated alias for items """
+        warn("descriptor_set.iteritems() deprecated. Please use"
+             " items() instead", category=DeprecationWarning)
+        return self.items()

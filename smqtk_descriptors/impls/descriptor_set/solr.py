@@ -300,7 +300,7 @@ class SolrDescriptorSet (DescriptorSet):
         if batch:
             batch_op(batch)
 
-    def iterkeys(self) -> Generator[Hashable, None, None]:
+    def keys(self) -> Generator[Hashable, None, None]:
         """
         Return an iterator over set descriptor keys, which are their UUIDs.
         """
@@ -314,7 +314,7 @@ class SolrDescriptorSet (DescriptorSet):
             for doc in r.results:
                 yield doc[self.d_uid_field]
 
-    def iterdescriptors(self) -> Generator[DescriptorElement, None, None]:
+    def descriptors(self) -> Generator[DescriptorElement, None, None]:
         """
         Return an iterator over set descriptor element instances.
         """
@@ -328,7 +328,7 @@ class SolrDescriptorSet (DescriptorSet):
             for doc in r.results:
                 yield pickle.loads(doc[self.descriptor_field])
 
-    def iteritems(self) -> Generator[Tuple[Hashable, DescriptorElement], None, None]:
+    def items(self) -> Generator[Tuple[Hashable, DescriptorElement], None, None]:
         """
         Return an iterator over set descriptor key and instance pairs.
         """

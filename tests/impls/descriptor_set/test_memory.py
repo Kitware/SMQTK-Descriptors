@@ -286,19 +286,19 @@ class TestMemoryDescriptorSet (unittest.TestCase):
         descrs = [random_descriptor() for _ in range(100)]
         i.add_many_descriptors(descrs)
         self.assertEqual(len(i), 100)
-        self.assertEqual(list(i.iterdescriptors()), descrs)
+        self.assertEqual(list(i.descriptors()), descrs)
 
         # remove singles
         i.remove_descriptor(descrs[0].uuid())
         self.assertEqual(len(i), 99)
-        self.assertEqual(set(i.iterdescriptors()),
+        self.assertEqual(set(i.descriptors()),
                          set(descrs[1:]))
 
         # remove many
         rm_d = descrs[slice(45, 80, 3)]
         i.remove_many_descriptors((d.uuid() for d in rm_d))
         self.assertEqual(len(i), 99 - len(rm_d))
-        self.assertEqual(set(i.iterdescriptors()),
+        self.assertEqual(set(i.descriptors()),
                          set(descrs[1:]).difference(rm_d))
 
     def test_natural_iter(self) -> None:
@@ -310,21 +310,21 @@ class TestMemoryDescriptorSet (unittest.TestCase):
         self.assertEqual(set(i),
                          set(descrs))
 
-    def test_iterdescrs(self) -> None:
+    def test_descrs(self) -> None:
         i = MemoryDescriptorSet()
         descrs = [random_descriptor() for _ in range(100)]
         i.add_many_descriptors(descrs)
-        self.assertEqual(set(i.iterdescriptors()),
+        self.assertEqual(set(i.descriptors()),
                          set(descrs))
 
-    def test_iterkeys(self) -> None:
+    def test_keys(self) -> None:
         i = MemoryDescriptorSet()
         descrs = [random_descriptor() for _ in range(100)]
         i.add_many_descriptors(descrs)
-        self.assertEqual(set(i.iterkeys()),
+        self.assertEqual(set(i.keys()),
                          set(d.uuid() for d in descrs))
 
-    def test_iteritems(self) -> None:
+    def test_items(self) -> None:
         i = MemoryDescriptorSet()
         descrs = [random_descriptor() for _ in range(100)]
         i.add_many_descriptors(descrs)

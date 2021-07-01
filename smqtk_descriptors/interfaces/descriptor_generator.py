@@ -2,7 +2,6 @@ import abc
 from collections import deque
 import logging
 from typing import Deque, Generator, Iterable, List, Optional, Tuple
-
 import numpy as np
 
 from smqtk_core import Configurable, Pluggable
@@ -150,13 +149,13 @@ class DescriptorGenerator (Configurable, Pluggable, ContentTypeValidator):
         # number of elements to be yielded, that would be ``end_of_iter[0]+1``.
         # NOTE: When moving to python3+ only support, we can use the
         #       ``nonlocal end_of_iter`` statement within the
-        #       ``iter_tocompute_data`` function instead of imitating a state
+        #       ``tocompute_data`` function instead of imitating a state
         #       object here.
         end_of_iter: List[Optional[int]] = [None]
 
         # TODO: Make generator threadsafe?
         # See: https://anandology.com/blog/using-iterators-and-generators/
-        def iter_tocompute_data() -> Generator[DataElement, None, None]:
+        def tocompute_data() -> Generator[DataElement, None, None]:
             """ Yield data elements that need descriptor computation.
 
             Populate parallel lists as we traverse ``data_iter``, yielding data
@@ -191,17 +190,17 @@ class DescriptorGenerator (Configurable, Pluggable, ContentTypeValidator):
 
             end_of_iter[0] = last_i
 
-        descr_vec_iter = self.generate_arrays(iter_tocompute_data())
+        descr_vec_iter = self.generate_arrays(tocompute_data())
         for v_i, v in enumerate(descr_vec_iter):
             # These pops would fail with an IndexError if there is nothing left
-            #   left from parallel allocation within ``iter_tocompute_data``.
+            #   left from parallel allocation within ``tocompute_data``.
             # This usually means that the ``self.generate_arrays`` is
             #   generating more vectors than there are descr element slots to
             #   fill.
             v_descr_elem, v_already_computed = elem_and_status_q.popleft()
 
             # Forwarding the iterator of the ``descr_vec_iter`` generator will,
-            # probably, forward the ``iter_tocompute_data`` iterator, thus
+            # probably, forward the ``tocompute_data`` iterator, thus
             # populating the ``elem_and_status_q`` to some degree. The current
             # ``v`` should be be used to populate the next DescriptorElement
             # with an associated "already_computed" flag of False.
@@ -219,7 +218,7 @@ class DescriptorGenerator (Configurable, Pluggable, ContentTypeValidator):
             v_descr_elem.set_vector(v)
             yield v_descr_elem
 
-        # At this point, the ``iter_tocompute_data()`` iterator should have
+        # At this point, the ``tocompute_data()`` iterator should have
         #   completed due to the ``self.generate_arrays`` method iterating
         #   through it completely, assigning a value to ``end_of_iter[0]``.
         # This also indicates that nothing more should be being added to the
@@ -243,7 +242,6 @@ class DescriptorGenerator (Configurable, Pluggable, ContentTypeValidator):
                     "filled).".format(e.uuid())
                 )
             yield e
-
     #
     # Single-element-based convenience methods
     #
