@@ -1,5 +1,4 @@
 import abc
-from collections.abc import Iterator as abc_Iterator
 from itertools import zip_longest
 import heapq
 import logging
@@ -10,17 +9,18 @@ import queue
 import sys
 import threading
 import traceback
-from typing import Any, Callable, Iterable, List, Optional, Sequence, Type, Union
+from typing import Any, Callable, Iterable, Iterator, List, Optional, Sequence, Type, Union, TypeVar
 
 
 LOG = logging.getLogger(__name__)
+T_co = TypeVar("T_co", covariant=True)
 
 
 def parallel_map(
-    work_func: Callable,
+    work_func: Callable[..., T_co],
     *sequences: Iterable,
     **kwargs: Any
-) -> "ParallelResultsIterator":
+) -> "ParallelResultsIterator[T_co]":
     """
     Generalized local parallelization helper for executing embarrassingly
     parallel functions on an iterable of input data. This function then yields
@@ -249,7 +249,7 @@ def _is_terminal(p: Any) -> bool:
     return isinstance(p, _TerminalPacket)
 
 
-class ParallelResultsIterator (abc_Iterator):
+class ParallelResultsIterator (Iterator[T_co]):
     """
     Iterator return from a parallel mapping job, managing workers and output
     results queue consumption.
@@ -333,7 +333,7 @@ class ParallelResultsIterator (abc_Iterator):
             "address": hex(id(self)),
         }
 
-    def __next__(self) -> Any:
+    def __next__(self) -> T_co:
         l_prefix = self._l_prefix
         try:
             if not self.has_started_workers:

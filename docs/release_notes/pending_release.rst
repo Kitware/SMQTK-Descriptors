@@ -5,8 +5,18 @@ Pending Release Notes
 Updates / New Features
 ----------------------
 
+Deprecations
+
 * Deprecated and renamed various functions with `iter*` prefix because this is
   no longer a standard. Deprecation warnings were added to preserve usability.
+
+Utils
+
+* More usefully type and annotate
+  :func:`smqtk_descriptors.utils.parallel.parallel_map` to pass through the
+  input callable's annotated return type as the iteration output of the
+  returned :class:`~smqtk_descriptors.utils.parallel.ParallelResultsIterator`
+  instance.
 
 Fixes
 -----
