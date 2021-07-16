@@ -10,6 +10,9 @@ Deprecations
 * Deprecated and renamed various functions with `iter*` prefix because this is
   no longer a standard. Deprecation warnings were added to preserve usability.
 
+* Removed `type_str` from `descriptor_element` interface and impls because the
+  type-string attribute isn't utilized.
+
 Utils
 
 * More usefully type and annotate

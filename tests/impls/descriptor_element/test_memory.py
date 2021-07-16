@@ -12,20 +12,19 @@ class TestDescriptorMemoryElement (unittest.TestCase):
 
     def test_configuration(self) -> None:
         """ Test instance standard configuration """
-        inst = DescriptorMemoryElement('test', 'abcd')
-        for i in configuration_test_helper(inst, {'type_str', 'uuid'},
-                                           ('test', 'abcd')):  # type: DescriptorMemoryElement
-            assert i.type() == 'test'
+        inst = DescriptorMemoryElement('abcd')
+        for i in configuration_test_helper(inst, {'uuid'},
+                                           ('abcd',)):  # type: DescriptorMemoryElement
             assert i.uuid() == 'abcd'
 
     def test_pickle_dump_load(self) -> None:
         # Make a couple descriptors
         v1 = numpy.array([1, 2, 3])
-        d1 = DescriptorMemoryElement('test', 0)
+        d1 = DescriptorMemoryElement(0)
         d1.set_vector(v1)
 
         v2 = numpy.array([4, 5, 6])
-        d2 = DescriptorMemoryElement('test', 1)
+        d2 = DescriptorMemoryElement(1)
         d2.set_vector(v2)
 
         d1_s = pickle.dumps(d1)
@@ -40,7 +39,6 @@ class TestDescriptorMemoryElement (unittest.TestCase):
 
     def test_set_state_version_1(self) -> None:
         # Test support of older state version
-        expected_type = 'test-type'
         expected_uid = 'test-uid'
         expected_v = numpy.array([1, 2, 3])
         expected_v_b = BytesIO()
@@ -50,9 +48,8 @@ class TestDescriptorMemoryElement (unittest.TestCase):
 
         # noinspection PyTypeChecker
         # - Using dummy data in constructor for testing __setstate__.
-        e = DescriptorMemoryElement('unexpected-key', 'unexpected-uid')
-        e.__setstate__((expected_type, expected_uid, expected_v_dump))
-        self.assertEqual(e.type(), expected_type)
+        e = DescriptorMemoryElement('unexpected-uid')
+        e.__setstate__((expected_uid, expected_v_dump))
         self.assertEqual(e.uuid(), expected_uid)
         numpy.testing.assert_array_equal(e.vector(), expected_v)
 
@@ -65,7 +62,7 @@ class TestDescriptorMemoryElement (unittest.TestCase):
         #
         v = numpy.random.rand(16)
         t = tuple(v.copy())
-        d = DescriptorMemoryElement('test', 0)
+        d = DescriptorMemoryElement(0)
         d.set_vector(v)
         v[:] = 0
         self.assertTrue((v == 0).all())
@@ -86,11 +83,11 @@ class TestDescriptorMemoryElement (unittest.TestCase):
         t2 = tuple(v2.copy())
         t3 = tuple(v3.copy())
 
-        d1 = DescriptorMemoryElement('test', 1)
+        d1 = DescriptorMemoryElement(1)
         d1.set_vector(v1)
-        d2 = DescriptorMemoryElement('test', 2)
+        d2 = DescriptorMemoryElement(2)
         d2.set_vector(v2)
-        d3 = DescriptorMemoryElement('test', 3)
+        d3 = DescriptorMemoryElement(3)
         d3.set_vector(v3)
 
         numpy.testing.assert_equal(v1, d1.vector())
@@ -113,7 +110,7 @@ class TestDescriptorMemoryElement (unittest.TestCase):
         # make sure that data stored is not susceptible to modifications after
         # extraction
         v = numpy.ones(16)
-        d = DescriptorMemoryElement('test', 0)
+        d = DescriptorMemoryElement(0)
         self.assertFalse(d.has_vector())
         d.set_vector(v)
         r = d.vector()
@@ -125,7 +122,7 @@ class TestDescriptorMemoryElement (unittest.TestCase):
         self.assertEqual(r_again.sum(), 16)
 
     def test_none_set(self) -> None:
-        d = DescriptorMemoryElement('test', 0)
+        d = DescriptorMemoryElement(0)
         self.assertFalse(d.has_vector())
 
         d.set_vector(numpy.ones(16))

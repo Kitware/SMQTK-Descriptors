@@ -40,26 +40,23 @@ class PostgresDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
 
     UPSERT_TABLE_TMPL = norm_psql_cmd_string("""
         CREATE TABLE IF NOT EXISTS {table_name:s} (
-          {type_col:s} TEXT NOT NULL,
           {uuid_col:s} TEXT NOT NULL,
           {binary_col:s} BYTEA NOT NULL,
-          PRIMARY KEY ({type_col:s}, {uuid_col:s})
+          PRIMARY KEY ({uuid_col:s})
         );
     """)
 
     SELECT_TMPL = norm_psql_cmd_string("""
         SELECT {binary_col:s}
           FROM {table_name:s}
-          WHERE {type_col:s} = %(type_val)s
-            AND {uuid_col:s} = %(uuid_val)s
+          WHERE {uuid_col:s} = %(uuid_val)s
         ;
     """)
 
     SELECT_MANY_TMPL = norm_psql_cmd_string("""
         SELECT {uuid_col:s}, {binary_col:s}
           FROM {table_name:s}
-          WHERE {type_col:s} = %(type_val)s
-            AND {uuid_col:s} IN %(uuids_tuple)s
+          WHERE {uuid_col:s} IN %(uuids_tuple)s
         ;
     """)
 
@@ -67,12 +64,11 @@ class PostgresDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
         WITH upsert AS (
           UPDATE {table_name:s}
             SET {binary_col:s} = %(binary_val)s
-            WHERE {type_col:s} = %(type_val)s
-              AND {uuid_col:s} = %(uuid_val)s
+            WHERE {uuid_col:s} = %(uuid_val)s
             RETURNING *
           )
-        INSERT INTO {table_name:s} ({type_col:s}, {uuid_col:s}, {binary_col:s})
-          SELECT %(type_val)s, %(uuid_val)s, %(binary_val)s
+        INSERT INTO {table_name:s} ({uuid_col:s}, {binary_col:s})
+          SELECT %(uuid_val)s, %(binary_val)s
             WHERE NOT EXISTS (SELECT * FROM upsert);
     """)
 
@@ -85,11 +81,9 @@ class PostgresDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
 
     def __init__(
         self,
-        type_str: str,
         uuid: Hashable,
         table_name: str = 'descriptors',
         uuid_col: str = 'uid',
-        type_col: str = 'type_str',
         binary_col: str = 'vector',
         db_name: str = 'postgres',
         db_host: Optional[str] = None,
@@ -102,8 +96,8 @@ class PostgresDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
         Initialize new PostgresDescriptorElement attached to some database
         credentials.
 
-        We require that storage tables treat uuid AND type string columns as
-        primary keys. The type and uuid columns should be of the 'text' type.
+        We require that storage tables treat uuid columns as
+        primary keys. The uuid columns should be of the 'text' type.
         The binary column should be of the 'bytea' type.
 
         Default argument values assume a local PostgreSQL database with a table
@@ -118,12 +112,9 @@ class PostgresDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
               ``uuid.UUID`` instances or strings, but this cannot be generally
               assumed.
 
-        :param type_str: Type of descriptor. This is usually the name of the
-            content descriptor that generated this vector.
         :param uuid: Unique ID reference of the descriptor.
         :param table_name: String label of the database table to use.
         :param uuid_col: The column label for descriptor UUID storage
-        :param type_col: The column label for descriptor type string storage.
         :param binary_col: The column label for descriptor vector binary
             storage.
         :param db_name: The name of the database to connect to.
@@ -142,11 +133,10 @@ class PostgresDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
             user does not have sufficient permissions to create the table and it
             does not currently exist, an exception will be raised.
         """
-        super(PostgresDescriptorElement, self).__init__(type_str, uuid)
+        super(PostgresDescriptorElement, self).__init__(uuid)
 
         self.table_name = table_name
         self.uuid_col = uuid_col
-        self.type_col = type_col
         self.binary_col = binary_col
         self.create_table = create_table
 
@@ -172,7 +162,6 @@ class PostgresDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
         state.update({
             "table_name": self.table_name,
             "uuid_col": self.uuid_col,
-            "type_col": self.type_col,
             "binary_col": self.binary_col,
             "create_table": self.create_table,
             "db_name": self.db_name,
@@ -189,7 +178,6 @@ class PostgresDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
         # Our parts
         self.table_name = state['table_name']
         self.uuid_col = state['uuid_col']
-        self.type_col = state['type_col']
         self.binary_col = state['binary_col']
         self.create_table = state['create_table']
         self.db_name = state['db_name']
@@ -209,7 +197,6 @@ class PostgresDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
         db_pass: Optional[str],
         table_name: str,
         uuid_col: str,
-        type_col: str,
         binary_col: str,
         itersize: int = 1000,
         create_table: bool = True
@@ -231,7 +218,6 @@ class PostgresDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
             None if no password is to be used.
         :param table_name: String label of the database table to use.
         :param uuid_col: The column label for descriptor UUID storage
-        :param type_col: The column label for descriptor type string storage.
         :param binary_col: The column label for descriptor vector binary
             storage.
         :param itersize: Number of records fetched per network round trip when
@@ -253,7 +239,6 @@ class PostgresDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
             helper.set_table_upsert_sql(
                 cls.UPSERT_TABLE_TMPL.format(
                     table_name=table_name,
-                    type_col=type_col,
                     uuid_col=uuid_col,
                     binary_col=binary_col
                 )
@@ -271,7 +256,7 @@ class PostgresDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
             # only meant to refer to a single entry in the associated table.
             self._psql_helper = self._create_psql_helper(
                 self.db_name, self.db_host, self.db_port, self.db_user,
-                self.db_pass, self.table_name, self.type_col, self.uuid_col,
+                self.db_pass, self.table_name, self.uuid_col,
                 self.binary_col, itersize=1, create_table=self.create_table
             )
         return self._psql_helper
@@ -280,7 +265,6 @@ class PostgresDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
         return {
             "table_name": self.table_name,
             "uuid_col": self.uuid_col,
-            "type_col": self.type_col,
             "binary_col": self.binary_col,
             "create_table": self.create_table,
 
@@ -313,11 +297,9 @@ class PostgresDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
         q_select = self.SELECT_TMPL.format(**{
             'binary_col': 'true',
             'table_name': self.table_name,
-            'type_col': self.type_col,
             'uuid_col': self.uuid_col,
         })
         q_select_values = {
-            "type_val": self.type(),
             "uuid_val": str(self.uuid())
         }
 
@@ -341,11 +323,9 @@ class PostgresDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
         q_select = self.SELECT_TMPL.format(**{
             "binary_col": self.binary_col,
             "table_name": self.table_name,
-            "type_col": self.type_col,
             "uuid_col": self.uuid_col,
         })
         q_select_values = {
-            "type_val": self.type(),
             "uuid_val": str(self.uuid())
         }
 
@@ -369,7 +349,7 @@ class PostgresDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
     def _sql_vector_query_options(
         cls,
         descriptor: "PostgresDescriptorElement"
-    ) -> Tuple[str, Optional[str], Optional[int], Optional[str], Optional[str], str, str, str, str, str]:
+    ) -> Tuple[str, Optional[str], Optional[int], Optional[str], Optional[str], str, str, str]:
         """
         Internal helper method to construct tuple of options used to construct
         sql query for given descriptor's vector.
@@ -383,10 +363,8 @@ class PostgresDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
             descriptor.db_user,
             descriptor.db_pass,
             descriptor.table_name,
-            descriptor.type_col,
             descriptor.uuid_col,
             descriptor.binary_col,
-            descriptor.type()
         )
 
     @classmethod
@@ -436,13 +414,11 @@ class PostgresDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
 
             sql_query = cls.SELECT_MANY_TMPL.format(
                 table_name=query_options[5],
-                type_col=query_options[6],
-                uuid_col=query_options[7],
-                binary_col=query_options[8],
+                uuid_col=query_options[6],
+                binary_col=query_options[7],
             )
 
             sql_values = {
-                "type_val": query_options[9],
                 "uuids_tuple": tuple(uuids)
             }
 
@@ -496,12 +472,10 @@ class PostgresDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
         q_upsert = self.UPSERT_TMPL.strip().format(**{
             "table_name": self.table_name,
             "binary_col": self.binary_col,
-            "type_col": self.type_col,
             "uuid_col": self.uuid_col,
         })
         q_upsert_values = {
             "binary_val": psycopg2.Binary(new_vec),
-            "type_val": self.type(),
             "uuid_val": str(self.uuid()),
         }
 

@@ -174,8 +174,7 @@ class DescriptorGenerator (Configurable, Pluggable, ContentTypeValidator):
             for d_i, data in enumerate(data_iter):
                 data_uuid_ = data.uuid()
                 descr_elem_ = \
-                    descr_factory.new_descriptor(self.__class__.__name__,
-                                                 data_uuid_)
+                    descr_factory.new_descriptor(data_uuid_)
                 already_computed = not overwrite and descr_elem_.has_vector()
                 elem_and_status_q.append((descr_elem_, already_computed))
                 if not already_computed:

@@ -13,15 +13,15 @@ class DescriptorMemoryElement (DescriptorElement):  # lgtm [py/missing-equals]
 
     Example
     -------
-    >>> self = DescriptorMemoryElement('random', 0)
+    >>> self = DescriptorMemoryElement(0)
     """
 
     @classmethod
     def is_usable(cls) -> bool:
         return True
 
-    def __init__(self, type_str: str, uuid: Hashable):
-        super(DescriptorMemoryElement, self).__init__(type_str, uuid)
+    def __init__(self, uuid: Hashable):
+        super(DescriptorMemoryElement, self).__init__(uuid)
         self.__v = None
 
     @classmethod
@@ -46,9 +46,8 @@ class DescriptorMemoryElement (DescriptorElement):  # lgtm [py/missing-equals]
         # Handle the previous state format:
         if isinstance(state, Sequence):
             # Could state ever be a str/bytes instance? That would cause a problem if so.
-            self._type_label = state[0]
-            self._uuid = state[1]
-            b = BytesIO(state[2])
+            self._uuid = state[0]
+            b = BytesIO(state[1])
         else:  # dictionary
             super(DescriptorMemoryElement, self).__setstate__(state)
             b = BytesIO(state['v'])
