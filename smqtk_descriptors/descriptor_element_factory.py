@@ -28,8 +28,8 @@ class DescriptorElementFactory (Configurable):
         :param d_type: Type of descriptor element this factory should produce.
         :param type_config: Initialization parameter dictionary that should
             contain all additional construction parameters for the provided type
-            except for the expected `type_str` and `uuid` arguments that should
-            be the first and second positional arguments respectively.
+            except for the expected `uuid` argument that should
+            be the first argument.
         """
         self._d_type = d_type
         self._d_type_config = type_config
@@ -79,26 +79,22 @@ class DescriptorElementFactory (Configurable):
     def get_config(self) -> Dict[str, Any]:
         return cls_conf_to_config_dict(self._d_type, self._d_type_config)
 
-    def new_descriptor(self, type_str: str, uuid: Hashable) -> DescriptorElement:
+    def new_descriptor(self, uuid: Hashable) -> DescriptorElement:
         """
         Create a new DescriptorElement instance of the configured implementation
 
-        :param type_str: Type of descriptor. This is usually the name of the
-            content descriptor that generated this vector.
         :param uuid: UUID to associate with the descriptor
 
         :return: New DescriptorElement instance
         """
-        return self._d_type.from_config(self._d_type_config, type_str, uuid)
+        return self._d_type.from_config(self._d_type_config, uuid)
 
-    def __call__(self, type_str: str, uuid: Hashable) -> DescriptorElement:
+    def __call__(self, uuid: Hashable) -> DescriptorElement:
         """
         Create a new DescriptorElement instance of the configured implementation
 
-        :param type_str: Type of descriptor. This is usually the name of the
-            content descriptor that generated this vector.
         :param uuid: UUID to associate with the descriptor
 
         :return: New DescriptorElement instance
         """
-        return self.new_descriptor(type_str, uuid)
+        return self.new_descriptor(uuid)

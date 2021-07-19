@@ -28,7 +28,6 @@ class DescriptorFileElement (DescriptorElement):  # lgtm [py/missing-equals]
 
     def __init__(
         self,
-        type_str: str,
         uuid: Hashable,
         save_dir: str,
         subdir_split: Optional[int] = None
@@ -36,8 +35,6 @@ class DescriptorFileElement (DescriptorElement):  # lgtm [py/missing-equals]
         """
         Initialize a file-base descriptor element.
 
-        :param type_str: Type of descriptor. This is usually the name of the
-            content descriptor that generated this vector.
         :param uuid: uuid for this descriptor
         :param save_dir: Directory to save this element's contents. If this path
             is relative, we interpret as relative to the current working
@@ -53,7 +50,7 @@ class DescriptorFileElement (DescriptorElement):  # lgtm [py/missing-equals]
             uuid.UUID instance as the uuid element).
 
         """
-        super(DescriptorFileElement, self).__init__(type_str, uuid)
+        super(DescriptorFileElement, self).__init__(uuid)
         self._save_dir = osp.abspath(osp.expanduser(save_dir))
         self._subdir_split = subdir_split
 
@@ -69,8 +66,7 @@ class DescriptorFileElement (DescriptorElement):  # lgtm [py/missing-equals]
         else:
             save_dir = self._save_dir
         self._vec_filepath = osp.join(save_dir,
-                                      "%s.%s.vector.npy" % (self.type(),
-                                                            str(self.uuid())))
+                                      f"{str(self.uuid())}.vector.npy")
 
     def __getstate__(self) -> Dict[str, Any]:
         state = super(DescriptorFileElement, self).__getstate__()

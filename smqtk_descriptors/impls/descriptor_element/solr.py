@@ -31,10 +31,8 @@ class SolrDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
 
     def __init__(
         self,
-        type_str: str,
         uuid: Hashable,
         solr_conn_addr: str,
-        type_field: str,
         uuid_field: str,
         vector_field: str,
         timestamp_field: str,
@@ -45,12 +43,8 @@ class SolrDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
         """
         Initialize a new Solr-stored descriptor element.
 
-        :param type_str: Type of descriptor. This is usually the name of the
-            content descriptor that generated this vector.
         :param uuid: Unique ID reference of the descriptor.
         :param solr_conn_addr: HTTP(S) address for the Solr index to use
-        :param type_field: Solr index field to store descriptor type string
-            value.
         :param uuid_field: Solr index field to store descriptor UUID string
             value in.
         :param vector_field: Solr index field to store the descriptor vector of
@@ -63,9 +57,8 @@ class SolrDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
             interactions.
         :param commit_on_set: Immediately commit changes when a vector is set.
         """
-        super(SolrDescriptorElement, self).__init__(type_str, uuid)
+        super(SolrDescriptorElement, self).__init__(uuid)
 
-        self.type_field = type_field
         self.uuid_field = uuid_field
         self.vector_field = vector_field
         self.timestamp_field = timestamp_field
@@ -80,7 +73,6 @@ class SolrDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
     def __getstate__(self) -> Dict[str, Any]:
         state = super(SolrDescriptorElement, self).__getstate__()
         state.update({
-            "type_field": self.type_field,
             "uuid_field": self.uuid_field,
             "vector_field": self.vector_field,
             "timestamp_field": self.timestamp_field,
@@ -92,13 +84,6 @@ class SolrDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
         return state
 
     def __setstate__(self, state: Mapping[str, Any]) -> None:
-        # Support older version of serialization
-        if 'type_label' in state:
-            self._type_label = state['type_label']
-            self._uuid = state['uuid']
-        else:
-            super(SolrDescriptorElement, self).__setstate__(state)
-        self.type_field = state['type_field']
         self.uuid_field = state['uuid_field']
         self.vector_field = state['vector_field']
         self.timestamp_field = state['timestamp_field']
@@ -127,24 +112,20 @@ class SolrDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
         :returns: A new dictionary representing the basic document structure
             for interacting with our elements in Solr.
         """
-        t = self.type()
         suuid = str(self.uuid())
         return {
-            'id': '-'.join([t, suuid]),
-            self.type_field: t,
+            'id': '-'.join([suuid]),
             self.uuid_field: suuid,
         }
 
     def _get_existing_doc(self) -> Optional[Dict[str, Any]]:
         """
-        :return: An existing document dict. If there isn't one for our type/uuid
+        :return: An existing document dict. If there isn't one for our uuid
             we return None.
         """
         b_doc = self._base_doc()
-        r = self.solr.select("id:%s AND %s:%s AND %s:%s"
-                             % (b_doc['id'],
-                                self.type_field, b_doc[self.type_field],
-                                self.uuid_field, b_doc[self.uuid_field]))
+        r = self.solr.select(f"id:{b_doc['id']} \
+                             AND {self.uuid_field}:{b_doc[self.uuid_field]}")
         if r.numFound == 1:
             return r.results[0]
         else:
@@ -153,7 +134,6 @@ class SolrDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
     def get_config(self) -> Dict[str, Any]:
         return {
             "solr_conn_addr": self.solr_conn_addr,
-            "type_field": self.type_field,
             "uuid_field": self.uuid_field,
             "vector_field": self.vector_field,
             "timestamp_field": self.timestamp_field,

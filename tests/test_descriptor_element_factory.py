@@ -9,8 +9,8 @@ from smqtk_descriptors.impls.descriptor_element.memory import DescriptorMemoryEl
 
 class DummyElementImpl (DescriptorElement):
 
-    def __init__(self, type_str: str, uuid: Hashable, *args: Any, **kwds: Any):
-        super(DummyElementImpl, self).__init__(type_str, uuid)
+    def __init__(self, uuid: Hashable, *args: Any, **kwds: Any):
+        super(DummyElementImpl, self).__init__(uuid)
         self.args = args
         self.kwds = kwds
 
@@ -34,16 +34,14 @@ class TestDescriptorElemFactory (unittest.TestCase):
 
         factory = DescriptorElementFactory(DummyElementImpl, test_params)
 
-        expected_type = 'type'
         expected_uuid = 'uuid'
         expected_args = ()
         expected_kwds: Dict[str, Any] = {}
 
         # Should construct a new DEI instance under they hood somewhere
-        r = factory.new_descriptor(expected_type, expected_uuid)
+        r = factory.new_descriptor(expected_uuid)
 
         assert isinstance(r, DummyElementImpl)
-        self.assertEqual(r._type_label, expected_type)
         self.assertEqual(r._uuid, expected_uuid)
         self.assertEqual(r.args, expected_args)
         self.assertEqual(r.kwds, expected_kwds)
@@ -57,15 +55,13 @@ class TestDescriptorElemFactory (unittest.TestCase):
 
         factory = DescriptorElementFactory(DummyElementImpl, test_params)
 
-        ex_type = 'type'
         ex_uuid = 'uuid'
         ex_args = ()
         ex_kwds = test_params
         # Should construct a new DEI instance under they hood somewhere
-        r = factory.new_descriptor(ex_type, ex_uuid)
+        r = factory.new_descriptor(ex_uuid)
 
         assert isinstance(r, DummyElementImpl)
-        self.assertEqual(r._type_label, ex_type)
         self.assertEqual(r._uuid, ex_uuid)
         self.assertEqual(r.args, ex_args)
         self.assertEqual(r.kwds, ex_kwds)
@@ -80,15 +76,13 @@ class TestDescriptorElemFactory (unittest.TestCase):
 
         factory = DescriptorElementFactory(DummyElementImpl, test_params)
 
-        ex_type = 'type'
         ex_uuid = 'uuid'
         ex_args = ()
         ex_kwds = test_params
         # Should construct a new DEI instance under they hood somewhere
-        r = factory(ex_type, ex_uuid)
+        r = factory(ex_uuid)
 
         assert isinstance(r, DummyElementImpl)
-        self.assertEqual(r._type_label, ex_type)
         self.assertEqual(r._uuid, ex_uuid)
         self.assertEqual(r.args, ex_args)
         self.assertEqual(r.kwds, ex_kwds)
@@ -105,8 +99,7 @@ class TestDescriptorElemFactory (unittest.TestCase):
                          DescriptorMemoryElement.__name__)
         self.assertEqual(factory._d_type_config, {})
 
-        d = factory.new_descriptor('test', 'foo')
-        self.assertEqual(d.type(), 'test')
+        d = factory.new_descriptor('foo')
         self.assertEqual(d.uuid(), 'foo')
 
     def test_get_config(self) -> None:

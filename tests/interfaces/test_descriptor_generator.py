@@ -351,7 +351,7 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
             m_descr_elems.append(desc)
 
         # Mock factory since we want to control has-vec return logic.
-        def m_fact_newdesc(_: Any, uuid: int) -> DescriptorElement:
+        def m_fact_newdesc(uuid: int) -> DescriptorElement:
             return dict(enumerate(m_descr_elems))[uuid]
 
         m_fact = \

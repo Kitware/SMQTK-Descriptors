@@ -14,7 +14,7 @@ RAND_UUID = 0
 
 def random_descriptor() -> DescriptorMemoryElement:
     global RAND_UUID
-    d = DescriptorMemoryElement('random', RAND_UUID)
+    d = DescriptorMemoryElement(RAND_UUID)
     d.set_vector(numpy.random.rand(64))
     RAND_UUID += 1
     return d

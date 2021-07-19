@@ -16,15 +16,14 @@ class TestDescriptorSolrElement (unittest.TestCase):
     @mock.patch("solr.Solr")
     def test_configuration(self, _mock_solr: mock.MagicMock) -> None:
         inst = SolrDescriptorElement(
-            'test', 'a',
+            'a',
             solr_conn_addr=self.TEST_URL,
-            type_field='type_s', uuid_field='uuid_s', vector_field='vector_fs',
+            uuid_field='uuid_s', vector_field='vector_fs',
             timestamp_field='timestamp_f', timeout=101,
             persistent_connection=True, commit_on_set=False,
         )
-        for i in configuration_test_helper(inst, {'type_str', 'uuid'}, ('test', 'abcd')):
+        for i in configuration_test_helper(inst, {'uuid'}, ('abcd',)):
             assert i.solr_conn_addr == self.TEST_URL
-            assert i.type_field == 'type_s'
             assert i.uuid_field == 'uuid_s'
             assert i.vector_field == 'vector_fs'
             assert i.timestamp_field == 'timestamp_f'
