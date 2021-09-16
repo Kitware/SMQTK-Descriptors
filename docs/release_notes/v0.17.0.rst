@@ -1,5 +1,9 @@
-Pending Release Notes
-=====================
+v0.17.0
+=======
+This release deprecates and renames certain variables and functions to modernize
+some of the code while preserving functionality. It also adds the ability
+for images to be handles directly in `ImageDescriptorGenerator` while also
+paving the way to include a future `VideoDescriptorGenerator`.
 
 
 Updates / New Features
