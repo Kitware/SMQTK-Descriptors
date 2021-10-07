@@ -526,7 +526,7 @@ psql = ["psycopg2-binary (>=2.8.6,<3.0.0)"]
 
 [[package]]
 name = "smqtk-image-io"
-version = "0.16.1"
+version = "0.16.2"
 description = "SMQTK Image IO"
 category = "main"
 optional = false
@@ -774,7 +774,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "7c96804222d91441cc506d779798d18f2e028abc06eeb42c5bfae325c07be0f8"
+content-hash = "9dbf341dc2303873af7f523e97d902810722972d46dff7db8a8080eb4adf3b0a"
 
 [metadata.files]
 alabaster = [
@@ -1140,8 +1140,8 @@ smqtk-dataprovider = [
     {file = "smqtk_dataprovider-0.16.0.tar.gz", hash = "sha256:27cea4dcfc9ec47ccefef8ec14dc20f0c3840c27ed471f49025f63777cfdfbc3"},
 ]
 smqtk-image-io = [
-    {file = "smqtk_image_io-0.16.1-py3-none-any.whl", hash = "sha256:a851ca9d776ac1b049a672b5e8896f69021feb00cee20179ceb04f64d03fea26"},
-    {file = "smqtk_image_io-0.16.1.tar.gz", hash = "sha256:9aa31bd987e1c93a27611d054a944939090c980c4c5fa5b9a66fd0120e0e2145"},
+    {file = "smqtk_image_io-0.16.2-py3-none-any.whl", hash = "sha256:14b12e81db7c22716657d3066e908199457b9bf56c5fb8248f2feac98b6f8e3d"},
+    {file = "smqtk_image_io-0.16.2.tar.gz", hash = "sha256:c8a6dbfa8a6ef8122fca44616f71ad03d858c80427ea01be50abc40fe4f30531"},
 ]
 snowballstemmer = [
     {file = "snowballstemmer-2.1.0-py2.py3-none-any.whl", hash = "sha256:b51b447bea85f9968c13b650126a888aabd4cb4463fca868ec596826325dedc2"},
