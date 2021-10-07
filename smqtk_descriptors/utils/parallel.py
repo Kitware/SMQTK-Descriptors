@@ -334,6 +334,11 @@ class ParallelResultsIterator (Iterator[T_co]):
         }
 
     def __next__(self) -> T_co:
+        # TORCH DETAIL -- Only allow worker shutdown *AFTER* results yielded or
+        # error has occurred.
+        # - leave feeder and workers alive when they are done, let this class
+        #   manage stopping/joining them when *this* is done.
+        # - Achieved via added "master_stop" event in feeder/workers.
         l_prefix = self._l_prefix
         try:
             if not self.has_started_workers:
@@ -412,11 +417,13 @@ class ParallelResultsIterator (Iterator[T_co]):
 
             LOG.log(1, f"{l_prefix} Stopping feeder thread")
             self.feeder_thread.stop()
+            self.feeder_thread.master_stop()
             self.feeder_thread.join()
 
             LOG.log(1, f"{l_prefix} Stopping workers")
             for w in self.workers:
                 w.stop()
+                w.master_stop()
                 w.join()
 
             if self.is_multiprocessing:
@@ -530,9 +537,17 @@ class _FeedQueueThread (threading.Thread):
         self.fill_value = fill_value
 
         self._stop_event = threading.Event()
+        # Event marking actual close of the thread.
+        # This should be only invoked by the ParallelResultsIterator when
+        # performing resource cleanup.
+        self._master_stop_event = threading.Event()
 
     def stop(self) -> None:
         self._stop_event.set()
+
+    def master_stop(self) -> None:
+        """ Actually flag the thread for runtime completion. """
+        self._master_stop_event.set()
 
     def stopped(self) -> bool:
         return self._stop_event.is_set()
@@ -576,6 +591,10 @@ class _FeedQueueThread (threading.Thread):
                 if isinstance(s, ParallelResultsIterator):
                     LOG.log(1, f"{l_prefix} Stopping nested parallel map: {s}")
                     s.stop()
+
+            # Await master stop
+            LOG.log(1, f"{l_prefix} Waiting for master stop...")
+            self._master_stop_event.wait()
 
             LOG.log(1, f"{l_prefix} Closing")
 
@@ -633,6 +652,10 @@ class _Worker(metaclass=abc.ABCMeta):
         LOG.log(1, f"{self._l_prefix} Making process worker ({str(in_q)}, {str(out_q)})")
 
         self._stop_event = self._make_event()
+        # Event marking actual close of the thread.
+        # This should be only invoked by the ParallelResultsIterator when
+        # performing resource cleanup.
+        self._master_stop_event = self._make_event()
 
     @classmethod
     @abc.abstractmethod
@@ -645,6 +668,10 @@ class _Worker(metaclass=abc.ABCMeta):
 
     def stop(self) -> None:
         self._stop_event.set()
+
+    def master_stop(self) -> None:
+        """ Actually flag the worker for runtime completion. """
+        self._master_stop_event.set()
 
     def stopped(self) -> bool:
         return self._stop_event.is_set()
@@ -682,6 +709,8 @@ class _Worker(metaclass=abc.ABCMeta):
             self.stop()
             raise
         finally:
+            LOG.log(1, f"{l_prefix} Waiting for master stop...")
+            self._master_stop_event.wait()
             LOG.log(1, f"{l_prefix} Closing")
 
     def q_get(self) -> Any:
