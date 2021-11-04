@@ -406,9 +406,10 @@ class PostgresDescriptorElement (DescriptorElement):  # lgtm [py/missing-equals]
         for query_options, uuids in batch_dictionary.items():
             helper_kwargs: Dict[str, Any] = dict(zip(
                 ['db_name', 'db_host', 'db_port', 'db_user', 'db_pass',
-                 'table_name', 'uuid_col', 'type_col', 'binary_col'],
-                query_options[:-1]
+                 'table_name', 'uuid_col', 'binary_col'],
+                query_options
             ))
+
             helper_kwargs['create_table'] = False
             psql_helper = cls._create_psql_helper(**helper_kwargs)
 
