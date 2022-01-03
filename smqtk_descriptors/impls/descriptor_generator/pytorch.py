@@ -15,7 +15,7 @@ from .utils import load_state_dict
 from smqtk.utils.parallel import parallel_map
 
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 import torchvision.models
 import torchvision.transforms
 from torch.nn import functional as F
@@ -41,6 +41,7 @@ def normalize_vectors(v, mode=None):
         return v / n
     # When normalization off
     return v
+
 
 class ImgMatDataset (Dataset):
 
@@ -371,7 +372,7 @@ class Resnet50SequentualTorchDescriptorGenerator (TorchModuleDescriptorGenerator
         )
         if pretrained:
             self._log.info("Using pre-trained weights for pytorch ResNet-50 "
-                           "network.".format(type(m)))
+                           "network.")
         return torch.nn.Sequential(
             *tuple(m.children())[:-1]
         )
@@ -407,7 +408,7 @@ class AlignedReIDResNet50TorchDescriptorGenerator (TorchModuleDescriptorGenerato
         )
         if pretrained:
             self._log.info("Using pre-trained weights for pytorch ResNet-50 "
-                           "network.".format(type(m)))
+                           "network.")
 
         # Return model without pool and linear layer
         return torch.nn.Sequential(

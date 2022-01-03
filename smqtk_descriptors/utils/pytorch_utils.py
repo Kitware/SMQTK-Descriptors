@@ -1,4 +1,4 @@
-## START FACEBOOK CODE
+# START FACEBOOK CODE
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 from collections import OrderedDict
 import logging
@@ -55,6 +55,7 @@ def align_and_update_state_dicts(model_state_dict, loaded_state_dict):
             )
         )
 
+
 def strip_prefix_if_present(state_dict, prefix):
     keys = sorted(state_dict.keys())
     if not all(key.startswith(prefix) for key in keys):
@@ -76,4 +77,4 @@ def load_state_dict(model, loaded_state_dict):
     # use strict loading
     model.load_state_dict(model_state_dict)
 
-## END FACEBOOK CODE
+# END FACEBOOK CODE
