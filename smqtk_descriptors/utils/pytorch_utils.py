@@ -6,7 +6,7 @@ import torch
 
 
 def align_and_update_state_dicts(model_state_dict, loaded_state_dict):
-    """ 
+    """
     Strategy: suppose that the models that we will create will have prefixes appended
     to each of its keys, for example due to an extra level of nesting that the original
     pre-trained weights from ImageNet won't contain. For example, model.state_dict()
@@ -77,4 +77,3 @@ def load_state_dict(model, loaded_state_dict):
     model.load_state_dict(model_state_dict)
 
 ## END FACEBOOK CODE
-

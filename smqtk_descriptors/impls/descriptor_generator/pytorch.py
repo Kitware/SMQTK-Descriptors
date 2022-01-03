@@ -156,7 +156,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
                                         # In-case weights were saved with the
                                         # context of a non-CPU device.
                                         map_location="cpu")
-                
+
                 # A common alternative pattern is for training to save
                 # checkpoints/state-dicts as a nested dict that contains the
                 # state-dict under the key 'state_dict'.
@@ -166,7 +166,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
                     checkpoint = checkpoint['state_dicts'][0]
 
                 # Align model and checkpoint and load weights
-                load_state_dict(module, checkpoint) 
+                load_state_dict(module, checkpoint)
 
             module.eval()
             if self._use_gpu:
@@ -217,12 +217,12 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
             num_workers=min(self._image_tform_threads, len(img_mat_list)),
             # Use pinned memory when we're in use-gpu mode.
             pin_memory=use_gpu is True)
-        
+
         for batch_input in dl:
             # batch_input: batch_size x channels x height x width
             if use_gpu:
                 batch_input = batch_input.cuda(cuda_device)
-            
+
             feats = self._forward(model, batch_input)
 
             for f in feats:
@@ -289,9 +289,9 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
                 # Copy input data tensor in batch to GPU.
                 # - Need to use the same CUDA device that model is loaded on.
                 process_tensor = batch_tensor.cuda(cuda_device)
-            
+
             feats = self._forward(model, process_tensor)
-            
+
             for f in feats:
                 yield f
             #: :type: list[torch.Tensor]
@@ -304,7 +304,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         :param torch.nn.Module model: Network module with loaded weights
         :param torch.Tensor model_input: Tensor that has been appropriately
             shaped and placed onto target inference hardware.
-        
+
         :return: Tensor output of module() call
         """
         with torch.no_grad():
@@ -393,14 +393,14 @@ class AlignedReIDResNet50TorchDescriptorGenerator (TorchModuleDescriptorGenerato
     """
     Descriptor generator for computing Aligned Re-ID++ descriptors.
     """
-    
+
     @classmethod
     def is_usable(cls):
         return True
 
     def _load_module(self):
         pretrained = self._weights_filepath is None
-        # Pre-initialization with imagenet model important - provided 
+        # Pre-initialization with imagenet model important - provided
         # checkpoint potentially missing layers
         m = torchvision.models.resnet50(
             pretrained=True
@@ -421,7 +421,7 @@ class AlignedReIDResNet50TorchDescriptorGenerator (TorchModuleDescriptorGenerato
         # Use only global features from return of (global_feats, local_feats)
         if isinstance(feats, tuple):
             feats = feats[0]
-      
+
         feats = F.avg_pool2d(feats, feats.size()[2:])
         feats = feats.view(feats.size(0), -1)
 
@@ -438,4 +438,3 @@ class AlignedReIDResNet50TorchDescriptorGenerator (TorchModuleDescriptorGenerato
                 std=[0.229, 0.224, 0.225]
             )
         ])
-
