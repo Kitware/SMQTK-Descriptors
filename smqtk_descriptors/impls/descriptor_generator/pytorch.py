@@ -1,27 +1,45 @@
 import abc
 import copy
 import itertools
+import logging
 
 import numpy as np
 
-from smqtk.algorithms import DescriptorGenerator, ImageReader
-from smqtk.utils.configuration import (
+from typing import (
+    Any, Callable, Dict, Iterable, Iterator, Optional,
+    Sequence, Set, Type, TypeVar, Union
+)
+
+from smqtk_dataprovider import DataElement
+from smqtk_descriptors import DescriptorGenerator
+from smqtk_image_io import ImageReader
+from smqtk_core.configuration import (
     from_config_dict,
     make_default_config,
     to_config_dict,
 )
 
-from .utils import load_state_dict
-from smqtk.utils.parallel import parallel_map
-
-import torch
-from torch.utils.data import Dataset
-import torchvision.models
-import torchvision.transforms
-from torch.nn import functional as F
+from smqtk_descriptors.utils.parallel import parallel_map
+from smqtk_descriptors.utils.pytorch_utils import load_state_dict
 
 
-def normalize_vectors(v, mode=None):
+LOG = logging.getLogger(__name__)
+
+try:
+    import torch  # type: ignore
+    from torch.utils.data import Dataset  # type: ignore
+    import torchvision.models  # type: ignore
+    import torchvision.transforms  # type: ignore
+    from torch.nn import functional as F  # type: ignore
+except ImportError as ex:
+    LOG.warning(f"Failed to import torch module: {ex}")
+    torch = None  # type: ignore
+
+T = TypeVar("T", bound="TorchModuleDescriptorGenerator")
+
+
+def normalize_vectors(v: np.ndarray,
+                      mode: Optional[Union[int, float, str]] = None) -> np.ndarray:
     """
     Array/Matrix normalization along max dimension (i.e. a=0 for 1D array, a=1
     for 2D array, etc.).
@@ -45,14 +63,16 @@ def normalize_vectors(v, mode=None):
 
 class ImgMatDataset (Dataset):
 
-    def __init__(self, img_mat_list, transform):
+    def __init__(self,
+                 img_mat_list: Sequence[np.ndarray],
+                 transform: Callable[[Iterable[np.ndarray]], torch.Tensor]) -> None:
         self._img_mat_list = img_mat_list
         self._transform = transform
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> torch.Tensor:
         return self._transform(self._img_mat_list[index])
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._img_mat_list)
 
 
@@ -105,10 +125,19 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         channel can improve the clustering in some cases.
     """
 
-    def __init__(self, image_reader, image_load_threads=1,
-                 weights_filepath=None, image_tform_threads=1, batch_size=32,
-                 use_gpu=False, cuda_device=None, normalize=None,
-                 iter_runtime=False, global_average_pool=False):
+    def __init__(
+        self,
+        image_reader: ImageReader,
+        image_load_threads: Optional[int] = 1,
+        weights_filepath: Optional[str] = None,
+        image_tform_threads: Optional[int] = 1,
+        batch_size: int = 32,
+        use_gpu: bool = False,
+        cuda_device: Optional[int] = None,
+        normalize: Optional[Union[int, float, str]] = None,
+        iter_runtime: bool = False,
+        global_average_pool: bool = False
+    ):
         super().__init__()
         self._image_reader = image_reader
         self._image_load_threads = image_load_threads
@@ -121,35 +150,35 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         self._iter_runtime = iter_runtime
         self._global_average_pool = global_average_pool
         # Place-holder for the torch.nn.Module loaded.
-        self._module = None
+        self._module: Optional[torch.nn.Module] = None
         # Just load model on construction
         # - this may have issues in multi-threaded/processed contexts. Use will
         #   will tell.
         self._ensure_module()
 
     @abc.abstractmethod
-    def _load_module(self):
+    def _load_module(self) -> torch.nn.Module:
         """
         :return: Load and return the module.
         :rtype: torch.nn.Module
         """
 
     @abc.abstractmethod
-    def _make_transform(self):
+    def _make_transform(self) -> Callable[[Iterable[DataElement]], torch.Tensor]:
         """
         :returns: A callable that takes in a ``numpy.ndarray`` image matrix and
             returns a transformed version as a ``torch.Tensor``.
         :rtype: (numpy.ndarray) -> torch.Tensor
         """
 
-    def valid_content_types(self):
+    def valid_content_types(self) -> Set:
         return self._image_reader.valid_content_types()
 
-    def is_valid_element(self, data_element):
+    def is_valid_element(self, data_element: DataElement) -> bool:
         # Check element validity though the ImageReader algorithm instance
         return self._image_reader.is_valid_element(data_element)
 
-    def _ensure_module(self):
+    def _ensure_module(self) -> torch.nn.Module:
         if self._module is None:
             module = self._load_module()
             if self._weights_filepath:
@@ -176,10 +205,10 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
 
         return self._module
 
-    def _generate_arrays(self, data_iter):
+    def _generate_arrays(self, data_iter: Iterable[DataElement]) -> Iterable[np.ndarray]:
         # Generically load image data [in parallel], iterating results into
         # template method.
-        ir_load = self._image_reader.load_as_matrix
+        ir_load: Callable[..., Any] = self._image_reader.load_as_matrix
         i_load_threads = self._image_load_threads
 
         gen_fn = (
@@ -201,7 +230,10 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
     #       that adds a PIL.Image.from_array and convert transformation to
     #       ensure being in the expected image format for the network.
 
-    def generate_arrays_from_images_naive(self, img_mat_iter):
+    def generate_arrays_from_images_naive(
+        self,
+        img_mat_iter: Iterable[DataElement]
+    ) -> Iterable[np.ndarray]:
         model = self._ensure_module()
 
         # Just gather all input into list for pytorch dataset wrapping
@@ -210,12 +242,17 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         use_gpu = self._use_gpu
         cuda_device = self._cuda_device
 
+        if self._image_tform_threads is not None:
+            num_workers: int = min(self._image_tform_threads, len(img_mat_list))
+        else:
+            num_workers = len(img_mat_list)
+
         dl = torch.utils.data.DataLoader(
             ImgMatDataset(img_mat_list, tform_img_fn),
             batch_size=self._batch_size,
             # Don't need more workers than we have input, so don't bother
             # spinning them up...
-            num_workers=min(self._image_tform_threads, len(img_mat_list)),
+            num_workers=num_workers,
             # Use pinned memory when we're in use-gpu mode.
             pin_memory=use_gpu is True)
 
@@ -229,7 +266,10 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
             for f in feats:
                 yield f
 
-    def generate_arrays_from_images_iter(self, img_mat_iter):
+    def generate_arrays_from_images_iter(
+        self,
+        img_mat_iter: Iterable[DataElement]
+    ) -> Iterable[np.ndarray]:
         """
         Template method for implementation to define descriptor generation over
         input image matrices.
@@ -237,7 +277,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         :param collections.Iterable[numpy.ndarray] img_mat_iter:
             Iterable of numpy arrays representing input image matrices.
 
-        :raises RuntimeError: Descriptor extraction failure of some kind.
+        :raises
 
         :return: Iterable of numpy arrays in parallel association with the
             input image matrices.
@@ -248,14 +288,14 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         # Set up running parallelize
         # - Not utilizing a DataLoader due to input being an iterator where
         #   we don't know the size of input a priori.
-        tform_img_fn = self._make_transform()
+        tform_img_fn: Callable[..., Any] = self._make_transform()
         tform_threads = self._image_tform_threads
         if tform_threads is None or tform_threads > 1:
-            tfed_mat_iter = parallel_map(tform_img_fn,
-                                         img_mat_iter,
-                                         cores=self._image_tform_threads,
-                                         name="{}_tform_img".format(self.name),
-                                         ordered=True)
+            tfed_mat_iter: Iterator = parallel_map(tform_img_fn,
+                                                   img_mat_iter,
+                                                   cores=self._image_tform_threads,
+                                                   name="tform_img",
+                                                   ordered=True)
         else:
             tfed_mat_iter = (
                 tform_img_fn(mat)
@@ -298,7 +338,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
             #: :type: list[torch.Tensor]
             batch_slice = list(itertools.islice(tfed_mat_iter, batch_size))
 
-    def _forward(self, model, model_input):
+    def _forward(self, model: torch.nn.Module, model_input: torch.Tensor) -> np.ndarray:
         """
         Template method for implementation of forward pass of model.
 
@@ -329,13 +369,17 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
 
     # Configuration overrides
     @classmethod
-    def get_default_config(cls):
+    def get_default_config(cls) -> Dict[str, Any]:
         c = super().get_default_config()
         c['image_reader'] = make_default_config(ImageReader.get_impls())
         return c
 
     @classmethod
-    def from_config(cls, config_dict, merge_default=True):
+    def from_config(
+        cls: Type[T],
+        config_dict: Dict,
+        merge_default: bool = True
+    ) -> T:
         # Copy config to prevent input modification
         config_dict = copy.deepcopy(config_dict)
         config_dict['image_reader'] = \
@@ -343,7 +387,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
                              ImageReader.get_impls())
         return super().from_config(config_dict, merge_default)
 
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         return {
             "image_reader": to_config_dict(self._image_reader),
             "image_load_threads": self._image_load_threads,
@@ -354,6 +398,13 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
             "cuda_device": self._cuda_device,
         }
 
+    @classmethod
+    def is_usable(cls) -> bool:
+        valid = torch is not None
+        if not valid:
+            LOG.debug("Torch python module not imported")
+        return valid
+
 
 class Resnet50SequentualTorchDescriptorGenerator (TorchModuleDescriptorGenerator):
     """
@@ -362,22 +413,22 @@ class Resnet50SequentualTorchDescriptorGenerator (TorchModuleDescriptorGenerator
     """
 
     @classmethod
-    def is_usable(cls):
+    def is_usable(cls) -> bool:
         return True
 
-    def _load_module(self):
+    def _load_module(self) -> torch.nn.Module:
         pretrained = self._weights_filepath is None
         m = torchvision.models.resnet50(
             pretrained=pretrained
         )
         if pretrained:
-            self._log.info("Using pre-trained weights for pytorch ResNet-50 "
-                           "network.")
+            LOG.info("Using pre-trained weights for pytorch ResNet-50 "
+                     "network.")
         return torch.nn.Sequential(
             *tuple(m.children())[:-1]
         )
 
-    def _make_transform(self):
+    def _make_transform(self) -> Callable[[Iterable[np.ndarray]], torch.Tensor]:
         # Transform based on: https://pytorch.org/hub/pytorch_vision_resnet/
         return torchvision.transforms.Compose([
             torchvision.transforms.ToPILImage(mode='RGB'),
@@ -396,10 +447,10 @@ class AlignedReIDResNet50TorchDescriptorGenerator (TorchModuleDescriptorGenerato
     """
 
     @classmethod
-    def is_usable(cls):
+    def is_usable(cls) -> bool:
         return True
 
-    def _load_module(self):
+    def _load_module(self) -> torch.nn.Module:
         pretrained = self._weights_filepath is None
         # Pre-initialization with imagenet model important - provided
         # checkpoint potentially missing layers
@@ -407,15 +458,15 @@ class AlignedReIDResNet50TorchDescriptorGenerator (TorchModuleDescriptorGenerato
             pretrained=True
         )
         if pretrained:
-            self._log.info("Using pre-trained weights for pytorch ResNet-50 "
-                           "network.")
+            LOG.info("Using pre-trained weights for pytorch ResNet-50 "
+                     "network.")
 
         # Return model without pool and linear layer
         return torch.nn.Sequential(
             *tuple(m.children())[:-2]
         )
 
-    def _forward(self, model, model_input):
+    def _forward(self, model: torch.nn.Module, model_input: torch.Tensor) -> np.ndarray:
         with torch.no_grad():
             feats = model(model_input)
 
@@ -428,7 +479,7 @@ class AlignedReIDResNet50TorchDescriptorGenerator (TorchModuleDescriptorGenerato
 
         return feats
 
-    def _make_transform(self):
+    def _make_transform(self) -> Callable[[Iterable[np.ndarray]], torch.Tensor]:
         # Transform based on: https://pytorch.org/hub/pytorch_vision_resnet/
         return torchvision.transforms.Compose([
             torchvision.transforms.ToPILImage(mode='RGB'),
