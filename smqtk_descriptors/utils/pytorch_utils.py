@@ -7,10 +7,9 @@ import logging
 LOG = logging.getLogger(__name__)
 
 try:
-    import torch
+    import torch  # type: ignore
 except ModuleNotFoundError as ex:
     LOG.warning(f"Failed to import torch module: {ex}")
-    torch = None  # type: ignore
 
 
 def align_and_update_state_dicts(model_state_dict: Dict, loaded_state_dict: Dict) -> None:
@@ -74,7 +73,7 @@ def strip_prefix_if_present(state_dict: Dict, prefix: str) -> Dict:
     return stripped_state_dict
 
 
-def load_state_dict(model: torch.nn.Module, loaded_state_dict: Dict) -> None:
+def load_state_dict(model: "torch.nn.Module", loaded_state_dict: Dict) -> None:
     model_state_dict = model.state_dict()
     # if the state_dict comes from a model that was wrapped in a
     # DataParallel or DistributedDataParallel during serialization,

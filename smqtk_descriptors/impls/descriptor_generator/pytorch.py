@@ -35,6 +35,11 @@ except ModuleNotFoundError as ex:
     LOG.warning(f"Failed to import torch module: {ex}")
     torch = None  # type: ignore
 
+__all__ = [
+    "TorchModuleDescriptorGenerator",
+    "Resnet50SequentialTorchDescriptorGenerator",
+    "AlignedReIDResNet50TorchDescriptorGenerator"
+]
 T = TypeVar("T", bound="TorchModuleDescriptorGenerator")
 
 
@@ -61,19 +66,22 @@ def normalize_vectors(v: np.ndarray,
     return v
 
 
-class ImgMatDataset (Dataset):
+try:
+    class ImgMatDataset (Dataset):
 
-    def __init__(self,
-                 img_mat_list: Sequence[np.ndarray],
-                 transform: Callable[[Iterable[np.ndarray]], torch.Tensor]) -> None:
-        self.img_mat_list = img_mat_list
-        self.transform = transform
+        def __init__(self,
+                     img_mat_list: Sequence[np.ndarray],
+                     transform: Callable[[Iterable[np.ndarray]], "torch.Tensor"]) -> None:
+            self.img_mat_list = img_mat_list
+            self.transform = transform
 
-    def __getitem__(self, index: int) -> torch.Tensor:
-        return self.transform(self.img_mat_list[index])
+        def __getitem__(self, index: int) -> "torch.Tensor":
+            return self.transform(self.img_mat_list[index])
 
-    def __len__(self) -> int:
-        return len(self.img_mat_list)
+        def __len__(self) -> int:
+            return len(self.img_mat_list)
+except NameError:
+    pass
 
 
 class TorchModuleDescriptorGenerator (DescriptorGenerator):
@@ -125,6 +133,32 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         channel can improve the clustering in some cases.
     """
 
+    @classmethod
+    def is_usable(cls) -> bool:
+        valid = torch is not None
+        if not valid:
+            LOG.debug("Torch python module not imported")
+        return valid
+
+    @classmethod
+    def get_default_config(cls) -> Dict[str, Any]:
+        c = super().get_default_config()
+        c['image_reader'] = make_default_config(ImageReader.get_impls())
+        return c
+
+    @classmethod
+    def from_config(
+        cls: Type[T],
+        config_dict: Dict,
+        merge_default: bool = True
+    ) -> T:
+        # Copy config to prevent input modification
+        config_dict = copy.deepcopy(config_dict)
+        config_dict['image_reader'] = \
+            from_config_dict(config_dict['image_reader'],
+                             ImageReader.get_impls())
+        return super().from_config(config_dict, merge_default)
+
     def __init__(
         self,
         image_reader: ImageReader,
@@ -164,14 +198,14 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         self._ensure_module()
 
     @abc.abstractmethod
-    def _load_module(self) -> torch.nn.Module:
+    def _load_module(self) -> "torch.nn.Module":
         """
         :return: Load and return the module.
         :rtype: torch.nn.Module
         """
 
     @abc.abstractmethod
-    def _make_transform(self) -> Callable[[Iterable[DataElement]], torch.Tensor]:
+    def _make_transform(self) -> Callable[[Iterable[DataElement]], "torch.Tensor"]:
         """
         :returns: A callable that takes in a ``numpy.ndarray`` image matrix and
             returns a transformed version as a ``torch.Tensor``.
@@ -199,7 +233,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         # Check element validity though the ImageReader algorithm instance
         return self.image_reader.is_valid_element(data_element)
 
-    def _ensure_module(self) -> torch.nn.Module:
+    def _ensure_module(self) -> "torch.nn.Module":
         if self.module is None:
             module = self._load_module()
             if self.weights_filepath:
@@ -359,7 +393,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
             #: :type: list[torch.Tensor]
             batch_slice = list(itertools.islice(tfed_mat_iter, batch_size))
 
-    def _forward(self, model: torch.nn.Module, model_input: torch.Tensor) -> np.ndarray:
+    def _forward(self, model: "torch.nn.Module", model_input: "torch.Tensor") -> np.ndarray:
         """
         Template method for implementation of forward pass of model.
 
@@ -388,26 +422,6 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
 
         return feats_np
 
-    # Configuration overrides
-    @classmethod
-    def get_default_config(cls) -> Dict[str, Any]:
-        c = super().get_default_config()
-        c['image_reader'] = make_default_config(ImageReader.get_impls())
-        return c
-
-    @classmethod
-    def from_config(
-        cls: Type[T],
-        config_dict: Dict,
-        merge_default: bool = True
-    ) -> T:
-        # Copy config to prevent input modification
-        config_dict = copy.deepcopy(config_dict)
-        config_dict['image_reader'] = \
-            from_config_dict(config_dict['image_reader'],
-                             ImageReader.get_impls())
-        return super().from_config(config_dict, merge_default)
-
     def get_config(self) -> Dict[str, Any]:
         return {
             "image_reader": to_config_dict(self.image_reader),
@@ -422,13 +436,6 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
             "global_average_pool": self.global_average_pool
         }
 
-    @classmethod
-    def is_usable(cls) -> bool:
-        valid = torch is not None
-        if not valid:
-            LOG.debug("Torch python module not imported")
-        return valid
-
 
 class Resnet50SequentialTorchDescriptorGenerator (TorchModuleDescriptorGenerator):
     """
@@ -438,9 +445,12 @@ class Resnet50SequentialTorchDescriptorGenerator (TorchModuleDescriptorGenerator
 
     @classmethod
     def is_usable(cls) -> bool:
-        return True
+        valid = torch is not None
+        if not valid:
+            LOG.debug("Torch python module not imported")
+        return valid
 
-    def _load_module(self) -> torch.nn.Module:
+    def _load_module(self) -> "torch.nn.Module":
         pretrained = self.weights_filepath is None
         m = torchvision.models.resnet50(
             pretrained=pretrained
@@ -452,7 +462,7 @@ class Resnet50SequentialTorchDescriptorGenerator (TorchModuleDescriptorGenerator
             *tuple(m.children())[:-1]
         )
 
-    def _make_transform(self) -> Callable[[Iterable[np.ndarray]], torch.Tensor]:
+    def _make_transform(self) -> Callable[[Iterable[np.ndarray]], "torch.Tensor"]:
         # Transform based on: https://pytorch.org/hub/pytorch_vision_resnet/
         return torchvision.transforms.Compose([
             torchvision.transforms.ToPILImage(mode='RGB'),
@@ -472,9 +482,12 @@ class AlignedReIDResNet50TorchDescriptorGenerator (TorchModuleDescriptorGenerato
 
     @classmethod
     def is_usable(cls) -> bool:
-        return True
+        valid = torch is not None
+        if not valid:
+            LOG.debug("Torch python module not imported")
+        return valid
 
-    def _load_module(self) -> torch.nn.Module:
+    def _load_module(self) -> "torch.nn.Module":
         pretrained = self.weights_filepath is None
         # Pre-initialization with imagenet model important - provided
         # checkpoint potentially missing layers
@@ -490,7 +503,7 @@ class AlignedReIDResNet50TorchDescriptorGenerator (TorchModuleDescriptorGenerato
             *tuple(m.children())[:-2]
         )
 
-    def _forward(self, model: torch.nn.Module, model_input: torch.Tensor) -> np.ndarray:
+    def _forward(self, model: "torch.nn.Module", model_input: "torch.Tensor") -> np.ndarray:
         with torch.no_grad():
             feats = model(model_input)
 
@@ -512,7 +525,7 @@ class AlignedReIDResNet50TorchDescriptorGenerator (TorchModuleDescriptorGenerato
 
         return feats_np
 
-    def _make_transform(self) -> Callable[[Iterable[np.ndarray]], torch.Tensor]:
+    def _make_transform(self) -> Callable[[Iterable[np.ndarray]], "torch.Tensor"]:
         # Transform based on: https://pytorch.org/hub/pytorch_vision_resnet/
         return torchvision.transforms.Compose([
             torchvision.transforms.ToPILImage(mode='RGB'),
