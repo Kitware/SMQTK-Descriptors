@@ -1,10 +1,14 @@
 # START FACEBOOK CODE
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 from collections import OrderedDict
-import logging
-import torch
-
 from typing import Dict
+import logging
+
+try:
+    import torch
+except ImportError as ex:
+    LOG.warning(f"Failed to import torch module: {ex}")
+    torch = None  # type: ignore
 
 
 def align_and_update_state_dicts(model_state_dict: Dict, loaded_state_dict: Dict) -> None:

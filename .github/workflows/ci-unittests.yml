@@ -111,5 +111,13 @@ jobs:
       - name: Setup Environment
         # See: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#example-using-a-public-action-in-a-subdirectory
         uses: Kitware/SMQTK-Core/.github/actions/python-poetry-setup@master
+      - name: Optionally install additional requirements
+        env:
+          OPT_EXTRA: ${{ matrix.opt-extra }}
+        run: |
+          if [[ -n "$OPT_EXTRA" ]]
+          then
+            poetry install --extras "$OPT_EXTRA"
+          fi
       - name: Run Unittests
         run: poetry run pytest --cov=smqtk_descriptors --cov-config=.pytest.coveragerc
