@@ -68,6 +68,7 @@ jedi = "^0.17.2"
 "smqtk_descriptors.impls.descriptor_element.solr" = "smqtk_descriptors.impls.descriptor_element.solr"
 # DescriptorGenerator
 "smqtk_descriptors.impls.descriptor_generator.caffe1" = "smqtk_descriptors.impls.descriptor_generator.caffe1"
+"smqtk_descriptors.impls.descriptor_generator.pytorch" = "smqtk_descriptors.impls.descriptor_generator.pytorch"
 # DescriptorSet
 "smqtk_descriptors.impls.descriptor_set.memory" = "smqtk_descriptors.impls.descriptor_set.memory"
 "smqtk_descriptors.impls.descriptor_set.postgres" = "smqtk_descriptors.impls.descriptor_set.postgres"
