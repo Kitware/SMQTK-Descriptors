@@ -4,9 +4,11 @@ from collections import OrderedDict
 from typing import Dict
 import logging
 
+LOG = logging.getLogger(__name__)
+
 try:
     import torch
-except ImportError as ex:
+except ModuleNotFoundError as ex:
     LOG.warning(f"Failed to import torch module: {ex}")
     torch = None  # type: ignore
 

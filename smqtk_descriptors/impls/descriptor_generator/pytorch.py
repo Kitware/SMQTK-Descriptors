@@ -31,7 +31,7 @@ try:
     import torchvision.models  # type: ignore
     import torchvision.transforms  # type: ignore
     from torch.nn import functional as F  # type: ignore
-except ImportError as ex:
+except ModuleNotFoundError as ex:
     LOG.warning(f"Failed to import torch module: {ex}")
     torch = None  # type: ignore
 
