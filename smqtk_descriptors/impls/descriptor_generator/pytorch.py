@@ -6,8 +6,8 @@ import logging
 import numpy as np
 
 from typing import (
-    Any, Callable, Dict, Iterable, Iterator, Optional,
-    Sequence, Set, Type, TypeVar, Union
+    Any, Callable, Dict, Iterable, Iterator, Mapping,
+    Optional, Sequence, Set, Type, TypeVar, Union
 )
 
 from smqtk_dataprovider import DataElement
@@ -66,14 +66,14 @@ class ImgMatDataset (Dataset):
     def __init__(self,
                  img_mat_list: Sequence[np.ndarray],
                  transform: Callable[[Iterable[np.ndarray]], torch.Tensor]) -> None:
-        self._img_mat_list = img_mat_list
-        self._transform = transform
+        self.img_mat_list = img_mat_list
+        self.transform = transform
 
     def __getitem__(self, index: int) -> torch.Tensor:
-        return self._transform(self._img_mat_list[index])
+        return self.transform(self.img_mat_list[index])
 
     def __len__(self) -> int:
-        return len(self._img_mat_list)
+        return len(self.img_mat_list)
 
 
 class TorchModuleDescriptorGenerator (DescriptorGenerator):
@@ -139,20 +139,27 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         global_average_pool: bool = False
     ):
         super().__init__()
-        self._image_reader = image_reader
-        self._image_load_threads = image_load_threads
-        self._weights_filepath = weights_filepath
-        self._image_tform_threads = image_tform_threads
-        self._batch_size = batch_size
-        self._use_gpu = use_gpu
-        self._cuda_device = cuda_device
-        self._normalize = normalize
-        self._iter_runtime = iter_runtime
-        self._global_average_pool = global_average_pool
+
+        # Make sure given image reader is valid
+        try:
+            image_reader.is_valid_element
+        except AttributeError:
+            raise
+
+        self.image_reader = image_reader
+        self.image_load_threads = image_load_threads
+        self.weights_filepath = weights_filepath
+        self.image_tform_threads = image_tform_threads
+        self.batch_size = batch_size
+        self.use_gpu = use_gpu
+        self.cuda_device = cuda_device
+        self.normalize = normalize
+        self.iter_runtime = iter_runtime
+        self.global_average_pool = global_average_pool
         # Place-holder for the torch.nn.Module loaded.
-        self._module: Optional[torch.nn.Module] = None
+        self.module: Optional[torch.nn.Module] = None
         # Just load model on construction
-        # - this may have issues in multi-threaded/processed contexts. Use will
+        # - this may have issues in multi-threaded/processed contexts. Use
         #   will tell.
         self._ensure_module()
 
@@ -171,18 +178,32 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         :rtype: (numpy.ndarray) -> torch.Tensor
         """
 
+    def __getstate__(self) -> Dict[str, Any]:
+        return self.get_config()
+
+    def __setstate__(self, state: Mapping[str, Any]) -> None:
+        # This ``__dict__.update`` works because configuration parameters
+        # exactly match up with instance attributes currently.
+        self.__dict__.update(state)
+        # Translate nested Configurable instance configurations into actual
+        # object instances.
+        self.image_reader = from_config_dict(
+            state['image_reader'], ImageReader.get_impls()
+        )
+        self._ensure_module()
+
     def valid_content_types(self) -> Set:
-        return self._image_reader.valid_content_types()
+        return self.image_reader.valid_content_types()
 
     def is_valid_element(self, data_element: DataElement) -> bool:
         # Check element validity though the ImageReader algorithm instance
-        return self._image_reader.is_valid_element(data_element)
+        return self.image_reader.is_valid_element(data_element)
 
     def _ensure_module(self) -> torch.nn.Module:
-        if self._module is None:
+        if self.module is None:
             module = self._load_module()
-            if self._weights_filepath:
-                checkpoint = torch.load(self._weights_filepath,
+            if self.weights_filepath:
+                checkpoint = torch.load(self.weights_filepath,
                                         # In-case weights were saved with the
                                         # context of a non-CPU device.
                                         map_location="cpu")
@@ -199,22 +220,22 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
                 load_state_dict(module, checkpoint)
 
             module.eval()
-            if self._use_gpu:
-                module = module.cuda(self._cuda_device)
-            self._module = module
+            if self.use_gpu:
+                module = module.cuda(self.cuda_device)
+            self.module = module
 
-        return self._module
+        return self.module
 
     def _generate_arrays(self, data_iter: Iterable[DataElement]) -> Iterable[np.ndarray]:
         # Generically load image data [in parallel], iterating results into
         # template method.
-        ir_load: Callable[..., Any] = self._image_reader.load_as_matrix
-        i_load_threads = self._image_load_threads
+        ir_load: Callable[..., Any] = self.image_reader.load_as_matrix
+        i_load_threads = self.image_load_threads
 
         gen_fn = (
             self.generate_arrays_from_images_naive,     # False
             self.generate_arrays_from_images_iter,      # True
-        )[self._iter_runtime]
+        )[self.iter_runtime]
 
         if i_load_threads is None or i_load_threads > 1:
             return gen_fn(
@@ -239,17 +260,17 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         # Just gather all input into list for pytorch dataset wrapping
         img_mat_list = list(img_mat_iter)
         tform_img_fn = self._make_transform()
-        use_gpu = self._use_gpu
-        cuda_device = self._cuda_device
+        use_gpu = self.use_gpu
+        cuda_device = self.cuda_device
 
-        if self._image_tform_threads is not None:
-            num_workers: int = min(self._image_tform_threads, len(img_mat_list))
+        if self.image_tform_threads is not None:
+            num_workers: int = min(self.image_tform_threads, len(img_mat_list))
         else:
             num_workers = len(img_mat_list)
 
         dl = torch.utils.data.DataLoader(
             ImgMatDataset(img_mat_list, tform_img_fn),
-            batch_size=self._batch_size,
+            batch_size=self.batch_size,
             # Don't need more workers than we have input, so don't bother
             # spinning them up...
             num_workers=num_workers,
@@ -289,11 +310,11 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         # - Not utilizing a DataLoader due to input being an iterator where
         #   we don't know the size of input a priori.
         tform_img_fn: Callable[..., Any] = self._make_transform()
-        tform_threads = self._image_tform_threads
+        tform_threads = self.image_tform_threads
         if tform_threads is None or tform_threads > 1:
             tfed_mat_iter: Iterator = parallel_map(tform_img_fn,
                                                    img_mat_iter,
-                                                   cores=self._image_tform_threads,
+                                                   cores=self.image_tform_threads,
                                                    name="tform_img",
                                                    ordered=True)
         else:
@@ -302,14 +323,14 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
                 for mat in img_mat_iter
             )
 
-        batch_size = self._batch_size
-        use_gpu = self._use_gpu
+        batch_size = self.batch_size
+        use_gpu = self.use_gpu
         # We don't know the shape of input data yet.
         batch_tensor = None
 
         #: :type: list[torch.Tensor]
         batch_slice = list(itertools.islice(tfed_mat_iter, batch_size))
-        cuda_device = self._cuda_device
+        cuda_device = self.cuda_device
         while batch_slice:
             # Use batch tensor unless this is the leaf batch, in which case
             # we need to allocate a reduced size one.
@@ -352,7 +373,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
             feats = model(model_input)
 
         # Apply global average pool
-        if self._global_average_pool and len(feats.size()) > 2:
+        if self.global_average_pool and len(feats.size()) > 2:
             feats = F.avg_pool2d(feats, feats.size()[2:])
             feats = feats.view(feats.size(0), -1)
 
@@ -363,7 +384,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
             feats_np = np.expand_dims(feats_np, 0)
 
         # Normalizing *after* squeezing for axis sanity.
-        feats_np = normalize_vectors(feats_np, self._normalize)
+        feats_np = normalize_vectors(feats_np, self.normalize)
 
         return feats_np
 
@@ -389,13 +410,16 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
 
     def get_config(self) -> Dict[str, Any]:
         return {
-            "image_reader": to_config_dict(self._image_reader),
-            "image_load_threads": self._image_load_threads,
-            "weights_filepath": self._weights_filepath,
-            "image_tform_threads": self._image_tform_threads,
-            "batch_size": self._batch_size,
-            "use_gpu": self._use_gpu,
-            "cuda_device": self._cuda_device,
+            "image_reader": to_config_dict(self.image_reader),
+            "image_load_threads": self.image_load_threads,
+            "weights_filepath": self.weights_filepath,
+            "image_tform_threads": self.image_tform_threads,
+            "batch_size": self.batch_size,
+            "use_gpu": self.use_gpu,
+            "cuda_device": self.cuda_device,
+            "normalize": self.normalize,
+            "iter_runtime": self.iter_runtime,
+            "global_average_pool": self.global_average_pool
         }
 
     @classmethod
@@ -406,7 +430,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         return valid
 
 
-class Resnet50SequentualTorchDescriptorGenerator (TorchModuleDescriptorGenerator):
+class Resnet50SequentialTorchDescriptorGenerator (TorchModuleDescriptorGenerator):
     """
     Use torchvision.models.resnet50, but chop off the final fully-connected
     layer as a ``torch.nn.Sequential``.
@@ -417,7 +441,7 @@ class Resnet50SequentualTorchDescriptorGenerator (TorchModuleDescriptorGenerator
         return True
 
     def _load_module(self) -> torch.nn.Module:
-        pretrained = self._weights_filepath is None
+        pretrained = self.weights_filepath is None
         m = torchvision.models.resnet50(
             pretrained=pretrained
         )
@@ -451,7 +475,7 @@ class AlignedReIDResNet50TorchDescriptorGenerator (TorchModuleDescriptorGenerato
         return True
 
     def _load_module(self) -> torch.nn.Module:
-        pretrained = self._weights_filepath is None
+        pretrained = self.weights_filepath is None
         # Pre-initialization with imagenet model important - provided
         # checkpoint potentially missing layers
         m = torchvision.models.resnet50(
@@ -477,7 +501,16 @@ class AlignedReIDResNet50TorchDescriptorGenerator (TorchModuleDescriptorGenerato
         feats = F.avg_pool2d(feats, feats.size()[2:])
         feats = feats.view(feats.size(0), -1)
 
-        return feats
+        feats_np = np.squeeze(feats.cpu().numpy().astype(np.float32))
+        if len(feats_np.shape) < 2:
+            # Add a dim if the batch size was only one (first dim squeezed
+            # down).
+            feats_np = np.expand_dims(feats_np, 0)
+
+        # Normalizing *after* squeezing for axis sanity.
+        feats_np = normalize_vectors(feats_np, self.normalize)
+
+        return feats_np
 
     def _make_transform(self) -> Callable[[Iterable[np.ndarray]], torch.Tensor]:
         # Transform based on: https://pytorch.org/hub/pytorch_vision_resnet/
