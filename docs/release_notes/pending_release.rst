@@ -13,6 +13,10 @@ Miscellaneous
 * Added a wrapper script to pull the versioning/changelog update helper from
   smqtk-core to use here without duplication.
 
+Misc.
+
+* Add PyTorch descriptor generator implementation
+
 Fixes
 -----
 
