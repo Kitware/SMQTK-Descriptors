@@ -81,6 +81,10 @@ jobs:
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8, 3.9]
+        opt-extra: {
+            "",  # no extras
+            "torch"
+        ]
       # We want all python versions tested even if one of them happens to fail
       fail-fast: false
 
