@@ -15,3 +15,5 @@ CI
 Dependency Versions
 
 * Update the locked version of urllib3 to address a security vulnerability.
+
+* Update the locked version of pillow to address a security vulnerability.
