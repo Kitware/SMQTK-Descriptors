@@ -2,13 +2,12 @@ import abc
 import copy
 import itertools
 import logging
-
-import numpy as np
-
 from typing import (
     Any, Callable, Dict, Iterable, Iterator, Mapping,
     Optional, Sequence, Set, Type, TypeVar, Union
 )
+
+import numpy as np
 
 from smqtk_dataprovider import DataElement
 from smqtk_descriptors import DescriptorGenerator
@@ -18,7 +17,6 @@ from smqtk_core.configuration import (
     make_default_config,
     to_config_dict,
 )
-
 from smqtk_descriptors.utils.parallel import parallel_map
 from smqtk_descriptors.utils.pytorch_utils import load_state_dict
 
