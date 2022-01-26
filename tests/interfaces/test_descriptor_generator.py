@@ -24,11 +24,9 @@ class DummyDescriptorGenerator (DescriptorGenerator):
         # Stub "method" for testing functionality is called post-final-yield.
         self._post_iterator_check = mock.Mock()
 
-    def get_config(self) -> Dict[str, Any]:
-        return {}
+    def get_config(self) -> Dict[str, Any]: ...
 
-    def valid_content_types(self) -> Set[str]:
-        return set()
+    def valid_content_types(self) -> Set[str]: ...
 
     def _generate_arrays(self, data_iter: Iterable[DataElement]) -> Iterable[numpy.ndarray]:
         # Make sure we go through iter, yielding "arrays"
@@ -43,8 +41,9 @@ class DummyDescriptorGenerator (DescriptorGenerator):
         for i, d in enumerate(data_iter):
             yield [i]
         yield [-1]
-        yield [-2]
-        self._post_iterator_check()
+        # The following lines should not be run in the context of test usage.
+        yield [-2]  # pragma: no cover
+        self._post_iterator_check()  # pragma: no cover
 
     def _generate_too_few_arrays(self, data_iter: Iterable[DataElement]) -> Generator:
         """
