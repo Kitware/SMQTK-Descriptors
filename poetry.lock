@@ -813,7 +813,7 @@ pytorch = ["torch", "torchvision"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6.2"
-content-hash = "e2c531e4636cee67c841070a3abc0d7565122299ed37e38358a25d4d8c3ee4de"
+content-hash = "e63e673318a2b834caa7e557020d77701c614efb313e575332a6b0792739ae9d"
 
 [metadata.files]
 alabaster = [
