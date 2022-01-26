@@ -174,10 +174,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         super().__init__()
 
         # Make sure given image reader is valid
-        try:
-            image_reader.is_valid_element
-        except AttributeError:
-            raise
+        assert image_reader is not None
 
         self.image_reader = image_reader
         self.image_load_threads = image_load_threads

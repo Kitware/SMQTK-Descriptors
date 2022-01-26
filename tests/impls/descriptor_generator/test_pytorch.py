@@ -44,15 +44,13 @@ class TestTorchDescriptorGenerator (unittest.TestCase):
         Test that the class fails to construct and initialize if no
         ImageReader is provided.
         """
-        with pytest.raises(AttributeError,
-                           match="'NoneType' object has no attribute"):
+        with pytest.raises(AssertionError):
             # noinspection PyTypeChecker
             Resnet50SequentialTorchDescriptorGenerator(
                 image_reader=None  # type: ignore
             )
 
-        with pytest.raises(AttributeError,
-                           match="'NoneType' object has no attribute"):
+        with pytest.raises(AssertionError):
             # noinspection PyTypeChecker
             AlignedReIDResNet50TorchDescriptorGenerator(
                 image_reader=None  # type: ignore
