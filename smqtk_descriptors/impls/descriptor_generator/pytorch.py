@@ -40,8 +40,10 @@ __all__ = [
 T = TypeVar("T", bound="TorchModuleDescriptorGenerator")
 
 
-def normalize_vectors(v: np.ndarray,
-                      mode: Optional[Union[int, float, str]] = None) -> np.ndarray:
+def normalize_vectors(
+    v: np.ndarray,
+    mode: Optional[Union[int, float, str]] = None
+) -> np.ndarray:
     """
     Array/Matrix normalization along max dimension (i.e. a=0 for 1D array, a=1
     for 2D array, etc.).
@@ -63,9 +65,11 @@ def normalize_vectors(v: np.ndarray,
 try:
     class ImgMatDataset (Dataset):
 
-        def __init__(self,
-                     img_mat_list: Sequence[np.ndarray],
-                     transform: Callable[[Iterable[np.ndarray]], "torch.Tensor"]) -> None:
+        def __init__(
+            self,
+            img_mat_list: Sequence[np.ndarray],
+            transform: Callable[[Iterable[np.ndarray]], "torch.Tensor"]
+        ) -> None:
             self.img_mat_list = img_mat_list
             self.transform = transform
 
@@ -148,9 +152,10 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
     ) -> T:
         # Copy config to prevent input modification
         config_dict = copy.deepcopy(config_dict)
-        config_dict['image_reader'] = \
-            from_config_dict(config_dict['image_reader'],
-                             ImageReader.get_impls())
+        config_dict['image_reader'] = from_config_dict(
+            config_dict['image_reader'],
+            ImageReader.get_impls()
+        )
         return super().from_config(config_dict, merge_default)
 
     def __init__(
