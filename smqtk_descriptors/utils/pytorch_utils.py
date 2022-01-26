@@ -112,5 +112,3 @@ def load_state_dict(model: "torch.nn.Module", loaded_state_dict: Dict) -> None:
 
     # use strict loading
     model.load_state_dict(model_state_dict)
-
-# END FACEBOOK CODE

@@ -46,13 +46,10 @@ def normalize_vectors(v: np.ndarray,
     Array/Matrix normalization along max dimension (i.e. a=0 for 1D array, a=1
     for 2D array, etc.).
 
-    :param np.ndarray v:
-        Vector to normalize.
-    :param None|int|float|str mode:
-        ``numpy.linalg.norm`` order parameter.
+    :param v: Vector to normalize.
+    :param mode: ``numpy.linalg.norm`` order parameter.
 
     :return: Normalize version of the input array ``v``.
-    :rtype: np.ndarray
     """
     if mode is not None:
         n = np.linalg.norm(v, mode, v.ndim - 1, keepdims=True)
@@ -85,32 +82,32 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
     """
     Descriptor generator using some torch module.
 
-    :param smqtk.algorithms.ImageReader image_reader:
+    :param image_reader:
         Image reader algorithm to use for image loading.
-    :param int|None image_load_threads:
+    :param image_load_threads:
         Number of threads to use for parallel image loading. Set to "None" to
         use all available CPU threads. This is 1 (serial) by default.
-    :param None|str weights_filepath:
+    :param weights_filepath:
         Optional filepath to saved network weights to load. If this value is
         None then implementations should attempt to use their "pre-trained"
         mode if they have one. Otherwise an error is raised on model load when
         not provided.
-    :param int|None image_tform_threads:
+    :param image_tform_threads:
         Number of threads to utilize when transforming image matrices for
         network input. Set to `None` to use all available CPU threads.
         This is 1 (serial) by default).
-    :param int batch_size:
+    :param batch_size:
         Batch size use for model computation.
-    :param bool use_gpu:
+    :param use_gpu:
         If the model should be loaded onto, and processed on, the GPU.
-    :param None|int cuda_device:
+    :param cuda_device:
         Specific device value to pass to the CUDA transfer calls if `use_gpu`
         us enabled.
-    :param None|int|float|str normalize:
+    :param normalize:
         Optionally normalize descriptor vectors as they are produced. We use
         ``numpy.linalg.norm`` so any valid value for the ``ord`` parameter is
         acceptable here.
-    :param bool iter_runtime:
+    :param iter_runtime:
         By default the input image matrix data is accumulated into a list in
         order to utilize `torch.utils.data.DataLoader` for batching.
         If this is parameter is True however, we use a custom parallel
@@ -122,7 +119,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         This mode is idea for streaming input or high input volume situations.
         This mode currently has a short-coming of working only in a threaded
         manner so it is not as fast as using the `DataLoader` avenue.
-    :param bool global_average_pool:
+    :param global_average_pool:
         Optionally apply a GAP operation to the spatial dimension of the feature
         vector that is returned by the descriptor generator. Some models return
         a w x h x k tensor and flatten them into a single dimension, which can
@@ -198,7 +195,6 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
     def _load_module(self) -> "torch.nn.Module":
         """
         :return: Load and return the module.
-        :rtype: torch.nn.Module
         """
 
     @abc.abstractmethod
@@ -206,7 +202,6 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         """
         :returns: A callable that takes in a ``numpy.ndarray`` image matrix and
             returns a transformed version as a ``torch.Tensor``.
-        :rtype: (numpy.ndarray) -> torch.Tensor
         """
 
     def __getstate__(self) -> Dict[str, Any]:
@@ -326,14 +321,13 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         Template method for implementation to define descriptor generation over
         input image matrices.
 
-        :param collections.Iterable[numpy.ndarray] img_mat_iter:
+        :param img_mat_iter:
             Iterable of numpy arrays representing input image matrices.
 
         :raises
 
         :return: Iterable of numpy arrays in parallel association with the
             input image matrices.
-        :rtype: collections.Iterable[numpy.ndarray]
         """
         model = self._ensure_module()
 
@@ -394,8 +388,8 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         """
         Template method for implementation of forward pass of model.
 
-        :param torch.nn.Module model: Network module with loaded weights
-        :param torch.Tensor model_input: Tensor that has been appropriately
+        :param model: Network module with loaded weights
+        :param model_input: Tensor that has been appropriately
             shaped and placed onto target inference hardware.
 
         :return: Tensor output of module() call
