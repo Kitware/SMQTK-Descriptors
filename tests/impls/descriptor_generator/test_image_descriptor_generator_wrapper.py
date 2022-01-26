@@ -24,14 +24,12 @@ class StubImageReader (ImageReader):
         self,
         data_element: DataElement,
         pixel_crop: Optional[AxisAlignedBoundingBox] = None
-    ) -> Optional[np.ndarray]:
-        return iter([])
+    ) -> Optional[np.ndarray]: ...
 
     def get_config(self) -> Dict:
         return {}
 
-    def valid_content_types(self) -> Set:
-        return set()
+    def valid_content_types(self) -> Set: ...
 
 
 class StubImageDG (ImageDescriptorGenerator):
@@ -39,8 +37,7 @@ class StubImageDG (ImageDescriptorGenerator):
     def generate_arrays_from_images(
         self,
         img_mat_iter: Iterable[np.ndarray]
-    ) -> Iterable[np.ndarray]:
-        return iter([])
+    ) -> Iterable[np.ndarray]: ...
 
     def get_config(self) -> Dict[str, Any]:
         return {}

@@ -17,6 +17,13 @@ Misc.
 
 * Add PyTorch descriptor generator implementation
 
+Testing
+
+* Updated pytest configuration to cover package + tests, add report output
+  options.
+
+* Removed or no-cover mark dead lines of code.
+
 Fixes
 -----
 

@@ -7,44 +7,31 @@ from smqtk_descriptors import DescriptorElement, DescriptorSet
 
 class DummyDescriptorSet (DescriptorSet):
 
-    def get_config(self) -> Dict[str, Any]:
-        pass
+    def get_config(self) -> Dict[str, Any]: ...
 
-    def get_descriptor(self, uuid: Hashable) -> DescriptorElement:
-        pass
+    def get_descriptor(self, uuid: Hashable) -> DescriptorElement: ...
 
-    def get_many_descriptors(self, uuids: Iterable[Hashable]) -> Iterator[DescriptorElement]:
-        pass
+    def get_many_descriptors(self, uuids: Iterable[Hashable]) -> Iterator[DescriptorElement]: ...
 
-    def keys(self) -> Iterator[Hashable]:
-        pass
+    def keys(self) -> Iterator[Hashable]: ...
 
-    def items(self) -> Iterator[Tuple[Hashable, DescriptorElement]]:
-        pass
+    def items(self) -> Iterator[Tuple[Hashable, DescriptorElement]]: ...
 
-    def descriptors(self) -> Iterator[DescriptorElement]:
-        pass
+    def descriptors(self) -> Iterator[DescriptorElement]: ...
 
-    def remove_many_descriptors(self, uuids: Iterable[Hashable]) -> None:
-        pass
+    def remove_many_descriptors(self, uuids: Iterable[Hashable]) -> None: ...
 
-    def has_descriptor(self, uuid: Hashable) -> bool:
-        pass
+    def has_descriptor(self, uuid: Hashable) -> bool: ...
 
-    def add_many_descriptors(self, descriptors: Iterable[DescriptorElement]) -> None:
-        pass
+    def add_many_descriptors(self, descriptors: Iterable[DescriptorElement]) -> None: ...
 
-    def count(self) -> int:
-        pass
+    def count(self) -> int: ...
 
-    def clear(self) -> None:
-        pass
+    def clear(self) -> None: ...
 
-    def remove_descriptor(self, uuid: Hashable) -> None:
-        pass
+    def remove_descriptor(self, uuid: Hashable) -> None: ...
 
-    def add_descriptor(self, descriptor: DescriptorElement) -> None:
-        pass
+    def add_descriptor(self, descriptor: DescriptorElement) -> None: ...
 
 
 class TestDescriptorSetAbstract (unittest.TestCase):
