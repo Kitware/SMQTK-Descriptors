@@ -1,5 +1,30 @@
-# START FACEBOOK CODE
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
+"""
+MIT License
+
+Copyright (c) 2018 Facebook
+
+https://github.com/facebookresearch/maskrcnn-benchmark
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+"""
+
 from collections import OrderedDict
 from typing import Dict
 import logging
@@ -8,8 +33,8 @@ LOG = logging.getLogger(__name__)
 
 try:
     import torch  # type: ignore
-except ModuleNotFoundError as ex:
-    LOG.warning(f"Failed to import torch module: {ex}")
+except ModuleNotFoundError:
+    torch = None
 
 
 def align_and_update_state_dicts(model_state_dict: Dict, loaded_state_dict: Dict) -> None:
@@ -27,6 +52,8 @@ def align_and_update_state_dicts(model_state_dict: Dict, loaded_state_dict: Dict
     we want to match backbone[0].body.conv1.weight to conv1.weight, and
     backbone[0].body.res2.conv1.weight to res2.conv1.weight.
     """
+    assert torch is not None, "Torch python module not imported"
+
     current_keys = sorted(list(model_state_dict.keys()))
     loaded_keys = sorted(list(loaded_state_dict.keys()))
     # get a matrix of string matches, where each (i, j) entry correspond to the size of the
@@ -74,6 +101,8 @@ def strip_prefix_if_present(state_dict: Dict, prefix: str) -> Dict:
 
 
 def load_state_dict(model: "torch.nn.Module", loaded_state_dict: Dict) -> None:
+    assert torch is not None, "Torch python module not imported"
+
     model_state_dict = model.state_dict()
     # if the state_dict comes from a model that was wrapped in a
     # DataParallel or DistributedDataParallel during serialization,
