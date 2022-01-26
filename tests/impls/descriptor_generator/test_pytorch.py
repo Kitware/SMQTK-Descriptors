@@ -5,7 +5,6 @@ import unittest
 
 import unittest.mock as mock
 import numpy as np
-import pytest
 
 from smqtk_core.configuration import configuration_test_helper, make_default_config
 from smqtk_dataprovider.impls.data_element.file import DataFileElement
@@ -38,23 +37,6 @@ class TestTorchDescriptorGenerator (unittest.TestCase):
 
         self.assertIn(AlignedReIDResNet50TorchDescriptorGenerator,
                       DescriptorGenerator.get_impls())
-
-    def test_init_no_image_reader(self) -> None:
-        """
-        Test that the class fails to construct and initialize if no
-        ImageReader is provided.
-        """
-        with pytest.raises(AssertionError):
-            # noinspection PyTypeChecker
-            Resnet50SequentialTorchDescriptorGenerator(
-                image_reader=None  # type: ignore
-            )
-
-        with pytest.raises(AssertionError):
-            # noinspection PyTypeChecker
-            AlignedReIDResNet50TorchDescriptorGenerator(
-                image_reader=None  # type: ignore
-            )
 
     def test_get_config(self) -> None:
         expected_params: Dict[str, Any] = {
