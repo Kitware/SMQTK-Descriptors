@@ -120,4 +120,4 @@ jobs:
             poetry install --extras "$OPT_EXTRA"
           fi
       - name: Run Unittests
-        run: poetry run pytest --cov=smqtk_descriptors --cov-config=.pytest.coveragerc
+        run: poetry run pytest
