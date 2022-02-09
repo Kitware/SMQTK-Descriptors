@@ -8,6 +8,9 @@ CI
 
 * Added workflow to inherit the smqtk-core publish workflow.
 
+* Updated CI unittests workflow to include codecov reporting and to run
+  nightly.
+
 Miscellaneous
 
 * Added a wrapper script to pull the versioning/changelog update helper from
