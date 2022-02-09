@@ -24,6 +24,10 @@ Testing
 
 * Removed or no-cover mark dead lines of code.
 
+Documentation
+
+* Updated CONTRIBUTING.md to reference smqtk-core's CONTRIBUTING.md file.
+
 Fixes
 -----
 
