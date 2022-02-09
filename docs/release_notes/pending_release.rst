@@ -6,7 +6,7 @@ Updates / New Features
 
 CI
 
-* Add workflow to inherit the smqtk-core publish workflow.
+* Added workflow to inherit the smqtk-core publish workflow.
 
 Miscellaneous
 
@@ -15,11 +15,11 @@ Miscellaneous
 
 Misc.
 
-* Add PyTorch descriptor generator implementation
+* Added PyTorch descriptor generator implementation.
 
 Testing
 
-* Updated pytest configuration to cover package + tests, add report output
+* Updated pytest configuration to cover package + tests and added report output
   options.
 
 * Removed or no-cover mark dead lines of code.
@@ -33,16 +33,16 @@ Fixes
 
 CI
 
-* Also run CI unittests for PRs targetting branches that match the `release*`
-  glob.
+* Modified CI unittests workflow to run for PRs targetting branches that match
+  the `release*` glob.
 
 Dependency Versions
 
-* Update the locked version of urllib3 to address a security vulnerability.
+* Updated the locked version of urllib3 to address a security vulnerability.
 
-* Update the locked version of pillow to address a security vulnerability.
+* Updated the locked version of pillow to address a security vulnerability.
 
-* Update the developer dependency and locked version of ipython to address a
+* Updated the developer dependency and locked version of ipython to address a
   security vulnerability.
 
 * Removed `jedi = "^0.17.2"` requirement since recent `ipython = "^7.17.3"`
