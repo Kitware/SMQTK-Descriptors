@@ -12,6 +12,9 @@ on:
     branches:
       - master
       - release*
+  schedule:
+    # Nightly run unit tests to check for implicit dependency issues between pull requests.
+    - cron: '0 0 * * *'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -119,5 +122,13 @@ jobs:
           then
             poetry install --extras "$OPT_EXTRA"
           fi
+
       - name: Run Unittests
         run: poetry run pytest
+
+      - name: CodeCov report submission
+        uses: codecov/codecov-action@v1
+        with:
+          fail_ci_if_error: true
+          files: coverage.xml
+          flags: unittests
