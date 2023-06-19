@@ -22,7 +22,7 @@ class DescriptorMemoryElement (DescriptorElement):  # lgtm [py/missing-equals]
 
     def __init__(self, uuid: Hashable):
         super(DescriptorMemoryElement, self).__init__(uuid)
-        self.__v = None
+        self.__v = None  # type: Optional[numpy.ndarray[Any, numpy.dtype[Any]]]
 
     @classmethod
     def _get_many_vectors(
@@ -38,7 +38,7 @@ class DescriptorMemoryElement (DescriptorElement):  # lgtm [py/missing-equals]
         # save vector as binary string
         b = BytesIO()
         # noinspection PyTypeChecker
-        numpy.save(b, self.vector())
+        numpy.save(b, self.vector())  # type: ignore
         state['v'] = b.getvalue()
         return state
 
@@ -80,7 +80,7 @@ class DescriptorMemoryElement (DescriptorElement):  # lgtm [py/missing-equals]
             return numpy.copy(self.__v)
         return None
 
-    def set_vector(self, new_vec: numpy.ndarray) -> "DescriptorMemoryElement":
+    def set_vector(self, new_vec: Optional[numpy.ndarray]) -> "DescriptorMemoryElement":
         """
         Set the contained vector.
 

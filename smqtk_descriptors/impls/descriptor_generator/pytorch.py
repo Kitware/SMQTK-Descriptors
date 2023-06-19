@@ -3,7 +3,7 @@ import copy
 import itertools
 import logging
 from typing import (
-    Any, Callable, Dict, Iterable, Iterator, Mapping,
+    Any, Callable, Dict, Iterable, Iterator, Literal, Mapping,
     Optional, Sequence, Set, Type, TypeVar, Union
 )
 
@@ -42,7 +42,7 @@ T = TypeVar("T", bound="TorchModuleDescriptorGenerator")
 
 def normalize_vectors(
     v: np.ndarray,
-    mode: Optional[Union[int, float, str]] = None
+    mode: Optional[Union[int, float, Literal['fro', 'nuc']]] = None
 ) -> np.ndarray:
     """
     Array/Matrix normalization along max dimension (i.e. a=0 for 1D array, a=1
@@ -167,7 +167,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         batch_size: int = 32,
         use_gpu: bool = False,
         cuda_device: Optional[int] = None,
-        normalize: Optional[Union[int, float, str]] = None,
+        normalize: Optional[Union[int, float, Literal['fro', 'nuc']]] = None,
         iter_runtime: bool = False,
         global_average_pool: bool = False
     ):
@@ -197,7 +197,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
         """
 
     @abc.abstractmethod
-    def _make_transform(self) -> Callable[[Iterable[DataElement]], "torch.Tensor"]:
+    def _make_transform(self) -> Callable[[Iterable[np.ndarray]], "torch.Tensor"]:
         """
         :returns: A callable that takes in a ``numpy.ndarray`` image matrix and
             returns a transformed version as a ``torch.Tensor``.
@@ -278,7 +278,7 @@ class TorchModuleDescriptorGenerator (DescriptorGenerator):
 
     def generate_arrays_from_images_naive(
         self,
-        img_mat_iter: Iterable[DataElement]
+        img_mat_iter: Iterable[np.ndarray]
     ) -> Iterable[np.ndarray]:
         model = self._ensure_module()
 

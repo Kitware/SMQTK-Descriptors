@@ -1,5 +1,5 @@
 import abc
-from typing import Iterable
+from typing import Iterable, Optional
 import numpy as np
 
 from smqtk_core import Configurable, Pluggable
@@ -14,7 +14,7 @@ class ImageDescriptorGenerator (Configurable, Pluggable):
     @abc.abstractmethod
     def generate_arrays_from_images(
         self,
-        img_mat_iter: Iterable[np.ndarray]
+        img_mat_iter: Iterable[Optional[np.ndarray]]
     ) -> Iterable[np.ndarray]:
         """
         Generate descriptor vector elements for input image matrices.

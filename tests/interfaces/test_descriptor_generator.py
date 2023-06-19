@@ -24,14 +24,14 @@ class DummyDescriptorGenerator (DescriptorGenerator):
         # Stub "method" for testing functionality is called post-final-yield.
         self._post_iterator_check = mock.Mock()
 
-    def get_config(self) -> Dict[str, Any]: ...
+    def get_config(self) -> Dict[str, Any]: pass  # type: ignore
 
-    def valid_content_types(self) -> Set[str]: ...
+    def valid_content_types(self) -> Set[str]: pass  # type: ignore
 
     def _generate_arrays(self, data_iter: Iterable[DataElement]) -> Iterable[numpy.ndarray]:
         # Make sure we go through iter, yielding "arrays"
         for i, d in enumerate(data_iter):
-            yield [i]
+            yield numpy.asarray([i])
         self._post_iterator_check()
 
     def _generate_too_many_arrays(self, data_iter: Iterable[DataElement]) -> Generator:
@@ -406,7 +406,7 @@ class TestDescriptorGeneratorAbstract (unittest.TestCase):
         actual_e = self.inst.generate_one_element(m_d)
         expected_v = [0]
         numpy.testing.assert_allclose(
-            actual_e.vector(), expected_v
+            actual_e.vector(), expected_v  # type: ignore
         )
 
         # Complete iteration should cause post-yield method to be called.
