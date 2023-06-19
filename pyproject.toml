@@ -25,42 +25,49 @@ classifiers = [
         'Operating System :: MacOS :: MacOS X',
         'Operating System :: Unix',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
 ]
 
 [tool.poetry.dependencies]
-python = "^3.6.2"
-numpy = "^1.19.5"
+python = "^3.8"
+numpy = ">=1.19.5"
 smqtk-core = ">=0.18.0"
 smqtk-dataprovider = ">=0.16.0"
-smqtk-image-io = "^0.16.2"
-torch = {version = "^1.10.0", optional = true}
-torchvision = {version = "^0.11.1", optional = true}
+smqtk-image-io = [
+    { version = ">=0.16.2", python = "<3.11" },
+    { version = ">=0.17.0", python=">=3.11"}
+]
+torch = {version = ">=1.10.0,!=2.0.1", optional = true}
+torchvision = {version = ">=0.11.1", optional = true}
 
 [tool.poetry.extras]
 pytorch = ["torch", "torchvision"]
 
 [tool.poetry.dev-dependencies]
 # CI
-flake8 = "^3.9.0"
-flake8-mutable = "^1.2.0"
-mypy = "^0.812"
+flake8 = [
+    # Hinge because 6.0 minimum supported python version is 3.8.1
+    { version = ">=5", python = "<3.8.1" },
+    { version = ">=6", python = ">=3.8.1" }
+]
+flake8-mutable = ">=1.2.0"
+mypy = ">=0.812"
 # Docs
 # - Also see: `docs/readthedocs-reqs.txt` for use by RTD
-Sphinx = "^3.5.3"
-sphinx-rtd-theme = "^0.5.1"
-sphinx-argparse = "^0.2.5"
-sphinx-prompt = "^1.4.0"
-livereload = "^2.6.3"
+Sphinx = ">=3.5.3"
+sphinx-rtd-theme = ">=0.5.1"
+sphinx-argparse = ">=0.2.5"
+sphinx-prompt = ">=1.4.0"
+livereload = ">=2.6.3"
 # Testing
-coverage = "^5.5"
-pytest = "^6.2.2"
-pytest-cov = "^2.11.1"
+coverage = ">=5.5"
+pytest = ">=6.2.2"
+pytest-cov = ">=2.11.1"
 # Development
-ipython = "^7.16.3"
+ipython = ">=7.16.3"
 
 [tool.poetry.plugins."smqtk_plugins"]
 # DescriptorElement

@@ -4,12 +4,18 @@ Pending Release Notes
 Updates / New Features
 ----------------------
 
+Python
+
+* New minimum supported python changed to python = "^3.8".
+
 CI
 
 * Added workflow to inherit the smqtk-core publish workflow.
 
 * Updated CI unittests workflow to include codecov reporting.
   Reduced CodeCov report submission by skipping this step on scheduled runs.
+
+* Updated CI unittests to reflect new minimum support python = "^3.8".
 
 Miscellaneous
 
@@ -50,3 +56,5 @@ Dependency Versions
 
 * Removed `jedi = "^0.17.2"` requirement since recent `ipython = "^7.17.3"`
   update appropriately addresses the dependency.
+
+* Updated the locked versions of dependencies to reflect new minimum support `python = "^3.8".

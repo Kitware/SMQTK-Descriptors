@@ -1,7 +1,7 @@
 import collections
 import pickle
 import time
-from typing import Any, Deque, Dict, Generator, Hashable, Iterable, Mapping, Sequence, Tuple
+from typing import Any, Deque, Dict, Generator, Hashable, Iterable, Mapping, Optional, Sequence, Tuple
 
 from smqtk_descriptors import DescriptorElement, DescriptorSet
 
@@ -38,7 +38,7 @@ class SolrDescriptorSet (DescriptorSet):
         d_uid_field: str,
         descriptor_field: str,
         timestamp_field: str,
-        solr_params: Dict[str, Any] = None,
+        solr_params: Optional[Dict[str, Any]] = None,
         commit_on_add: bool = True,
         max_boolean_clauses: int = 1024,
         pickle_protocol: int = -1

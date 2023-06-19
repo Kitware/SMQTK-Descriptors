@@ -179,20 +179,25 @@ class PostgresDescriptorSet (DescriptorSet):
         self.read_only = bool(read_only)
         self.create_table = create_table
 
+        assert -1 <= self.pickle_protocol <= 2, \
+            ("Given pickle protocol is not in the known valid range. Given: %s"
+             % self.pickle_protocol)
         # Checking parameters where necessary
         if self.multiquery_batch_size is not None:
             self.multiquery_batch_size = int(self.multiquery_batch_size)
             assert self.multiquery_batch_size > 0, \
                 "A given batch size must be greater than 0 in size " \
                 "(given: %d)." % self.multiquery_batch_size
-        assert -1 <= self.pickle_protocol <= 2, \
-            ("Given pickle protocol is not in the known valid range. Given: %s"
-             % self.pickle_protocol)
 
-        self.psql_helper = PsqlConnectionHelper(db_name, db_host, db_port,
-                                                db_user, db_pass,
-                                                self.multiquery_batch_size,
-                                                PSQL_TABLE_CREATE_RLOCK)
+            self.psql_helper = PsqlConnectionHelper(db_name, db_host, db_port,
+                                                    db_user, db_pass,
+                                                    itersize=self.multiquery_batch_size,
+                                                    table_upsert_lock=PSQL_TABLE_CREATE_RLOCK)
+        else:
+            self.psql_helper = PsqlConnectionHelper(db_name, db_host, db_port,
+                                                    db_user, db_pass,
+                                                    table_upsert_lock=PSQL_TABLE_CREATE_RLOCK)
+
         if not self.read_only and self.create_table:
             self.psql_helper.set_table_upsert_sql(
                 self.UPSERT_TABLE_TMPL.format(

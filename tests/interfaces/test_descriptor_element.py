@@ -9,17 +9,13 @@ from smqtk_descriptors import DescriptorElement
 
 class DummyDescriptorElement (DescriptorElement):
 
-    def get_config(self) -> Dict[str, Any]:
-        """ stub """
+    def get_config(self) -> Dict[str, Any]: pass  # type: ignore
 
-    def set_vector(self, new_vec: numpy.ndarray) -> "DescriptorElement":
-        """ stub """
+    def set_vector(self, new_vec: numpy.ndarray) -> "DescriptorElement": pass  # type: ignore
 
-    def has_vector(self) -> bool:
-        """ stub """
+    def has_vector(self) -> bool: pass  # type: ignore
 
-    def vector(self) -> Optional[numpy.ndarray]:
-        """ stub """
+    def vector(self) -> Optional[numpy.ndarray]: pass  # type: ignore
 
 
 class TestDescriptorElementAbstract (unittest.TestCase):
@@ -92,7 +88,7 @@ class TestDescriptorElementAbstract (unittest.TestCase):
 
         retrieved_vectors = DummyDescriptorElement.get_many_vectors([d1, d2])
         for retrieved, expected in zip(retrieved_vectors, [v1, v2]):
-            numpy.testing.assert_array_equal(retrieved, expected)
+            numpy.testing.assert_array_equal(retrieved, expected)  # type: ignore
 
     def test_hash(self) -> None:
         # Hash of a descriptor element is solely based on the UUID value of
