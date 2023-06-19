@@ -7,44 +7,31 @@ from smqtk_descriptors import DescriptorElement, DescriptorSet
 
 class DummyDescriptorSet (DescriptorSet):
 
-    def get_config(self) -> Dict[str, Any]:
-        pass
+    def get_config(self) -> Dict[str, Any]: pass  # type: ignore
 
-    def get_descriptor(self, uuid: Hashable) -> DescriptorElement:
-        pass
+    def get_descriptor(self, uuid: Hashable) -> DescriptorElement: pass  # type: ignore
 
-    def get_many_descriptors(self, uuids: Iterable[Hashable]) -> Iterator[DescriptorElement]:
-        pass
+    def get_many_descriptors(self, uuids: Iterable[Hashable]) -> Iterator[DescriptorElement]: pass  # type: ignore
 
-    def keys(self) -> Iterator[Hashable]:
-        pass
+    def keys(self) -> Iterator[Hashable]: pass  # type: ignore
 
-    def items(self) -> Iterator[Tuple[Hashable, DescriptorElement]]:
-        pass
+    def items(self) -> Iterator[Tuple[Hashable, DescriptorElement]]: pass  # type: ignore
 
-    def descriptors(self) -> Iterator[DescriptorElement]:
-        pass
+    def descriptors(self) -> Iterator[DescriptorElement]: pass  # type: ignore
 
-    def remove_many_descriptors(self, uuids: Iterable[Hashable]) -> None:
-        pass
+    def remove_many_descriptors(self, uuids: Iterable[Hashable]) -> None: pass  # type: ignore
 
-    def has_descriptor(self, uuid: Hashable) -> bool:
-        pass
+    def has_descriptor(self, uuid: Hashable) -> bool: pass  # type: ignore
 
-    def add_many_descriptors(self, descriptors: Iterable[DescriptorElement]) -> None:
-        pass
+    def add_many_descriptors(self, descriptors: Iterable[DescriptorElement]) -> None: pass  # type: ignore
 
-    def count(self) -> int:
-        pass
+    def count(self) -> int: pass  # type: ignore
 
-    def clear(self) -> None:
-        pass
+    def clear(self) -> None: pass  # type: ignore
 
-    def remove_descriptor(self, uuid: Hashable) -> None:
-        pass
+    def remove_descriptor(self, uuid: Hashable) -> None: pass  # type: ignore
 
-    def add_descriptor(self, descriptor: DescriptorElement) -> None:
-        pass
+    def add_descriptor(self, descriptor: DescriptorElement) -> None: pass  # type: ignore
 
 
 class TestDescriptorSetAbstract (unittest.TestCase):
@@ -78,6 +65,8 @@ class TestDescriptorSetAbstract (unittest.TestCase):
         def dumb_iterator() -> Generator[int, None, None]:
             for _i in range(3):
                 yield _i
+
+        di.count = mock.Mock(return_value=3)  # type: ignore
 
         # noinspection PyTypeHints
         di.descriptors = mock.Mock(side_effect=dumb_iterator)  # type: ignore

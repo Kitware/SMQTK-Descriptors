@@ -20,27 +20,24 @@ from smqtk_descriptors.utils.parallel import (
 # Stub classes for testing
 class StubImageReader (ImageReader):
 
-    def _load_as_matrix(
+    def _load_as_matrix(  # type: ignore
         self,
         data_element: DataElement,
         pixel_crop: Optional[AxisAlignedBoundingBox] = None
-    ) -> Optional[np.ndarray]:
-        return iter([])
+    ) -> np.ndarray: pass
 
     def get_config(self) -> Dict:
         return {}
 
-    def valid_content_types(self) -> Set:
-        return set()
+    def valid_content_types(self) -> Set: pass  # type: ignore
 
 
 class StubImageDG (ImageDescriptorGenerator):
 
-    def generate_arrays_from_images(
+    def generate_arrays_from_images(  # type: ignore
         self,
-        img_mat_iter: Iterable[np.ndarray]
-    ) -> Iterable[np.ndarray]:
-        return iter([])
+        img_mat_iter: Iterable[Optional[np.ndarray]]
+    ) -> Iterable[np.ndarray]: pass
 
     def get_config(self) -> Dict[str, Any]:
         return {}

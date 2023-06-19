@@ -305,7 +305,7 @@ class TestCaffeDesctriptorGenerator (unittest.TestCase):
         a = _process_load_img_array((
             hopper_elem, test_transformer, test_data_layer, False, None
         ))
-        numpy.testing.assert_allclose(a, a_expected)
+        numpy.testing.assert_allclose(a[1], a_expected)
 
     def test_generate_arrays_dummy_model(self) -> None:
         # Caffe dummy network interaction test Grace Hopper image)

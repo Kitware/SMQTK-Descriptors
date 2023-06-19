@@ -51,7 +51,7 @@ class TestDescriptorMemoryElement (unittest.TestCase):
         e = DescriptorMemoryElement('unexpected-uid')
         e.__setstate__((expected_uid, expected_v_dump))
         self.assertEqual(e.uuid(), expected_uid)
-        numpy.testing.assert_array_equal(e.vector(), expected_v)
+        numpy.testing.assert_array_equal(e.vector(), expected_v)  # type: ignore
 
     def test_input_immutability(self) -> None:
         # make sure that data stored is not susceptible to shifts in the

@@ -14,17 +14,13 @@ class DummyElementImpl (DescriptorElement):
         self.args = args
         self.kwds = kwds
 
-    def set_vector(self, new_vec: numpy.ndarray) -> "DummyElementImpl":
-        return self
+    def set_vector(self, new_vec: numpy.ndarray) -> "DummyElementImpl": pass  # type: ignore
 
-    def has_vector(self) -> bool:
-        pass
+    def has_vector(self) -> bool: pass  # type: ignore
 
-    def vector(self) -> Optional[numpy.ndarray]:
-        pass
+    def vector(self) -> Optional[numpy.ndarray]: pass  # type: ignore
 
-    def get_config(self) -> Dict[str, Any]:
-        pass
+    def get_config(self) -> Dict[str, Any]: pass  # type: ignore
 
 
 class TestDescriptorElemFactory (unittest.TestCase):

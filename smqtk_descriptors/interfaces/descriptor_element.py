@@ -14,7 +14,7 @@ T = TypeVar("T", bound="DescriptorElement")
 
 def _uuid_and_vector_from_descriptor(
     descriptor: "DescriptorElement"
-) -> Tuple[Hashable, numpy.ndarray]:
+) -> Tuple[Hashable, Optional[numpy.ndarray]]:
     """
     Given a descriptor, return a tuple containing the UUID and associated
     vector for that descriptor
@@ -58,7 +58,7 @@ class DescriptorElement (Configurable, Pluggable):
 
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, DescriptorElement):
-            return numpy.array_equal(self.vector(), other.vector())
+            return numpy.array_equal(self.vector(), other.vector())  # type: ignore
         return False
 
     def __ne__(self, other: Any) -> bool:
@@ -188,7 +188,7 @@ class DescriptorElement (Configurable, Pluggable):
 
         # Default to None, since _get_many_vectors implementations can ignore
         # any descriptors that cannot be retrieved
-        ordered_vectors = [None] * (index + 1)
+        ordered_vectors = [None] * (index + 1)  # type: List[Optional[numpy.ndarray]]
 
         # Retrieve all the vectors for a given type of descriptor in a single
         # batch
