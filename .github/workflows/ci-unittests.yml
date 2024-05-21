@@ -127,9 +127,13 @@ jobs:
         run: poetry run pytest
 
       - name: CodeCov report submission
-        if: ${{ github.event_name != 'schedule' }}
-        uses: codecov/codecov-action@v3
+        # Only upload coverage if we have the token
+        env:
+          HAVE_CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN != '' }}
+        if: ${{ github.event_name != 'schedule' && env.HAVE_CODECOV_TOKEN == 'true' }}
+        uses: codecov/codecov-action@v4.0.1
         with:
           fail_ci_if_error: true
           files: coverage.xml
           flags: unittests
+          token: ${{ secrets.CODECOV_TOKEN }}

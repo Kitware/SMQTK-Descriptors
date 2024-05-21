@@ -1,3 +1,5 @@
+Sphinx >= 3.5.3
+sphinx-rtd-theme >= 0.5.1
 # Additional requirements for building our documentation in RTD
 sphinx-argparse==0.2.5
 sphinx-prompt==1.4.0
