@@ -33,7 +33,12 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.8"
-numpy = ">=1.19.5"
+numpy = [
+    { version = ">=1.26.0", python = "<4.0,>=3.12" },
+    { version = ">=1.23.2", python = "<3.12,>=3.11" },
+    { version = ">=1.21.6", python = "<3.11,>=3.10" },
+    { version = ">=1.19.5", python = "<3.10,>=3.8" },
+]
 smqtk-core = ">=0.18.0"
 smqtk-dataprovider = ">=0.16.0"
 smqtk-image-io = [
