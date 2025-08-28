@@ -1,0 +1,23 @@
+v0.20.0
+=======
+
+This release updates Python version support to require 3.10+ and extend testing through 3.13.
+Codecov integration was also improved to support coverage reporting on pull requests from forks.
+Additionally, this release includes small fixes for CI and ReadTheDocs, as well as a
+prepopulated descriptor generator
+
+Updates / New Features
+----------------------
+
+* Add prepopulated descriptor generator
+
+* Updated minimum supported Python version to ``>=3.10``.
+
+* Updated tested Python versions to ``3.10–3.13``.
+
+Fixes
+-----
+
+* Fixes for CI and readthedocs
+
+* Codecov integration to support coverage reporting on pull requests from forks (unprotected branches).

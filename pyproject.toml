@@ -8,7 +8,7 @@ name = "smqtk_descriptors"
 # REMEMBER: `distutils.version.*Version` types can be used to compare versions
 # from strings like this.
 # SMQTK prefers to use the strict numbering standard when possible.
-version = "0.19.0"
+version = "0.20.0"
 description = """\
     Algorithms, data structures and utilities around computing\
     descriptor vectors from data."""
@@ -25,21 +25,18 @@ classifiers = [
         'Operating System :: MacOS :: MacOS X',
         'Operating System :: Unix',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
+        'Programming Language :: Python :: 3.13',
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.10"
 numpy = ">=1.19.5"
-smqtk-core = ">=0.18.0"
-smqtk-dataprovider = ">=0.16.0"
-smqtk-image-io = [
-    { version = ">=0.16.2", python = "<3.11" },
-    { version = ">=0.17.0", python=">=3.11"}
-]
+smqtk-core = ">=0.20.0"
+smqtk-dataprovider = ">=0.19.0"
+smqtk-image-io = ">=0.18.0"
 torch = {version = ">=1.10.0,!=2.0.1", optional = true}
 torchvision = {version = ">=0.11.1", optional = true}
 
@@ -48,11 +45,7 @@ pytorch = ["torch", "torchvision"]
 
 [tool.poetry.dev-dependencies]
 # CI
-flake8 = [
-    # Hinge because 6.0 minimum supported python version is 3.8.1
-    { version = ">=5", python = "<3.8.1" },
-    { version = ">=6", python = ">=3.8.1" }
-]
+flake8 = ">=6"
 flake8-mutable = ">=1.2.0"
 mypy = ">=0.812"
 # Docs
@@ -78,6 +71,7 @@ ipython = ">=7.16.3"
 # DescriptorGenerator
 "smqtk_descriptors.impls.descriptor_generator.caffe1" = "smqtk_descriptors.impls.descriptor_generator.caffe1"
 "smqtk_descriptors.impls.descriptor_generator.pytorch" = "smqtk_descriptors.impls.descriptor_generator.pytorch"
+"smqtk_descriptors.impls.descriptor_generator.prepopulated" = "smqtk_descriptors.impls.descriptor_generator.prepopulated"
 # DescriptorSet
 "smqtk_descriptors.impls.descriptor_set.memory" = "smqtk_descriptors.impls.descriptor_set.memory"
 "smqtk_descriptors.impls.descriptor_set.postgres" = "smqtk_descriptors.impls.descriptor_set.postgres"
