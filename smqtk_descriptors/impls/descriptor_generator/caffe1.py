@@ -24,13 +24,13 @@ try:
     import PIL.ImageFile  # type: ignore
 except ImportError as ex:
     LOG.warning(f"Failed to import PIL module: {ex}")
-    PIL = None
+    PIL = None  # type: ignore
 
 try:
     import caffe  # type: ignore
 except ImportError as ex:
     LOG.warning(f"Failed to import caffe module: {ex}")
-    caffe = None
+    caffe = None  # type: ignore
 
 
 __all__ = [
@@ -446,6 +446,7 @@ def _process_load_img_array(
     (data_element, transformer, data_layer, load_truncated_images,
      pixel_rescale) = input_tuple
     PIL.ImageFile.LOAD_TRUNCATED_IMAGES = load_truncated_images
+    img: PIL.Image.Image
     try:
         img = PIL.Image.open(BytesIO(data_element.get_bytes()))
     except Exception as ex_:

@@ -6,7 +6,13 @@ Updates / New Features
 
 * Add prepopulated descriptor generator
 
+* Updated minimum supported Python version to ``>=3.10``.
+
+* Updated tested Python versions to ``3.10–3.13``.
+
 Fixes
 -----
 
 * Fixes for CI and readthedocs
+
+* Codecov integration to support coverage reporting on pull requests from forks (unprotected branches).
