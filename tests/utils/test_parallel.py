@@ -5,6 +5,15 @@ import unittest
 from smqtk_descriptors.utils.parallel import parallel_map
 
 
+# Module-level work functions are picklable under spawn and forkserver.
+def raise_expected_exception(_: Any) -> None:
+    raise RuntimeError("Expected exception")
+
+
+def identity(value: str) -> str:
+    return value
+
+
 class TestParallelMap (unittest.TestCase):
     test_string: List[str]
     test_func: Callable
@@ -43,23 +52,17 @@ class TestParallelMap (unittest.TestCase):
         self.assertEqual(set(r), set(self.expected))
 
     def test_exception_handing_threaded(self) -> None:
-        def raise_ex(_: Any) -> None:
-            raise RuntimeError("Expected exception")
-
         self.assertRaises(
             RuntimeError,
             list,
-            parallel_map(raise_ex, [1], use_multiprocessing=False)
+            parallel_map(raise_expected_exception, [1], use_multiprocessing=False)
         )
 
     def test_exception_handing_multiprocess(self) -> None:
-        def raise_ex(_: Any) -> None:
-            raise RuntimeError("Expected exception")
-
         self.assertRaises(
             RuntimeError,
             list,
-            parallel_map(raise_ex, [1], use_multiprocessing=True)
+            parallel_map(raise_expected_exception, [1], use_multiprocessing=True)
         )
 
     def test_multisequence(self) -> None:
@@ -106,7 +109,7 @@ class TestParallelMap (unittest.TestCase):
 
     def test_nested_multiprocessing(self) -> None:
         # char -> char -> ord -> char -> ord
-        g1 = parallel_map(lambda e: e, self.test_string,
+        g1 = parallel_map(identity, self.test_string,
                           ordered=True,
                           use_multiprocessing=True,
                           cores=2)
@@ -131,7 +134,7 @@ class TestParallelMap (unittest.TestCase):
 
     def test_nested_threading(self) -> None:
         # char -> char -> ord -> char -> ord
-        g1 = parallel_map(lambda e: e, self.test_string,
+        g1 = parallel_map(identity, self.test_string,
                           ordered=True,
                           use_multiprocessing=False,
                           cores=2,
