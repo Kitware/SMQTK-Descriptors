@@ -1,6 +1,11 @@
 v0.21.0
 =======
 
+This release adds official Python 3.14 support and testing, including the PyTorch
+extra, and explicit NumPy compatibility minimums. It updates dependencies for
+security, adapts multiprocessing tests to the forkserver default, and improves
+CI reliability.
+
 Updates / New Features
 ----------------------
 
