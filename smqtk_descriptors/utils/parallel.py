@@ -43,7 +43,7 @@ def parallel_map(
         - We can iterate results as they are ready (optionally in order of
           input)
         - Lambda or on-the-fly function can be provided as the work function
-          when using multiprocessing.
+          when using threads.
         - Buffered input/output queues so that mapping work of a very large
           input set doesn't overrun your memory (e.g. iterating over many large
           vectors/matrices).
@@ -95,9 +95,10 @@ def parallel_map(
         Function that performs some work on input data, resulting in some
         returned value.
 
-        When in multiprocessing mode, this cannot be a local function or a
-        transport error will occur when trying to move the function to the
-        worker process.
+        In multiprocessing mode, use a picklable callable such as a module-level
+        function. Local functions and lambdas cannot be transported to workers
+        when using the spawn or forkserver start methods (including Python
+        3.14's forkserver default on Linux).
     :param sequences: Input data to apply to the given ``work_func`` function.
         If more than one sequence is given, the function is called with an
         argument list consisting of the corresponding item of each sequence.
