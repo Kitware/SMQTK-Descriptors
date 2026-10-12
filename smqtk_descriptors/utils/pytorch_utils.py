@@ -34,7 +34,7 @@ LOG = logging.getLogger(__name__)
 try:
     import torch  # type: ignore
 except ModuleNotFoundError:
-    torch = None
+    torch = None  # type: ignore[assignment]
 
 
 def align_and_update_state_dicts(model_state_dict: Dict, loaded_state_dict: Dict) -> None:
